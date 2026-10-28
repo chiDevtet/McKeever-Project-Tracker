@@ -8,7 +8,7 @@ import { audit } from "@/server/audit";
 import { assertPlanAccess, assertProjectAccess, type Viewer } from "@/server/authz";
 import { prisma, type Tx } from "@/server/db";
 import { badRequest, notFound } from "@/server/errors";
-import { columnMappingSchema, mapSheetRows, readSheet, runPdfExtractor, type ExtractedSchedule } from "@/server/imports/extraction";
+import { columnMappingSchema, mapSheetRows, readSheet, renderPdfPages, runPdfExtractor, type ExtractedSchedule } from "@/server/imports/extraction";
 import { enqueueJob, QUEUES } from "@/server/jobs/queue";
 import { sha256, storeFile } from "@/server/services/files";
 import { mutatePlan } from "@/server/plan-store";
@@ -127,7 +127,9 @@ async function priorRecords(db: Tx, versionId: string | null): Promise<(Comparab
  * Store extraction results for a session (idempotent: replaces rows of the
  * same session) and compare against the prior version. Called by the worker.
  */
-export async function storeExtraction(sessionId: string, ex: ExtractedSchedule) {
+export type PreviewResult = { pages: number; scale: number } | { error: string } | null;
+
+export async function storeExtraction(sessionId: string, ex: ExtractedSchedule, previews: PreviewResult = null) {
   const s = await prisma.importSession.findUniqueOrThrow({ where: { id: sessionId } });
   if (s.status === "COMMITTED" || s.status === "CANCELED") return { skipped: true };
   const rows = ex.rows;
@@ -176,6 +178,7 @@ export async function storeExtraction(sessionId: string, ex: ExtractedSchedule) 
       const issues = [
         ...ex.issues.map((i) => ({ severity: i.kind === "empty" || i.kind === "no-text" ? "error" : "warning", ...i })),
         ...(scanned ? [{ severity: "error", page: null, kind: "scanned", message: "No page contains extractable text; this looks like a scanned PDF. OCR is not supported. Upload a CSV or Excel export of the schedule, or enter activities manually on the Schedule tab." }] : []),
+        ...(previews && "error" in previews ? [{ severity: "warning", page: null, kind: "preview", message: `Page previews could not be rendered (${previews.error}); the review grid still works and the original PDF can be opened directly.` }] : []),
       ];
       const meta = s.extractionMeta as { timeline?: unknown[] };
       await tx.importSession.update({
@@ -188,7 +191,8 @@ export async function storeExtraction(sessionId: string, ex: ExtractedSchedule) 
             ...meta,
             timeline: [...(meta.timeline ?? []), { status: "EXTRACTED", at: new Date().toISOString(), rows: rows.length }, { status: empty ? "FAILED" : "NEEDS_REVIEW", at: new Date().toISOString() }],
             pageCount: ex.pageCount,
-            pages: ex.pages.map((p) => ({ number: p.number, rows: p.rows, chars: p.chars, headerFound: p.headerFound })),
+            pages: ex.pages.map((p) => ({ number: p.number, width: p.width, height: p.height, rows: p.rows, chars: p.chars, headerFound: p.headerFound })),
+            previews: previews && "pages" in previews ? previews : null,
             title: ex.meta.title ?? null,
             runDate: ex.meta.runDate ?? null,
             dataDate: ex.meta.dataDate ?? null,
@@ -217,6 +221,32 @@ export async function extractSessionRows(sessionId: string, onProgress?: (done: 
   const mapping = columnMappingSchema.parse(s.columnMapping);
   const { rows } = await readSheet(bytes, s.format, mapping.sheet);
   return mapSheetRows(rows, mapping);
+}
+
+export const previewKey = (fileId: string, page: number) => `previews/${fileId}/page-${page}.png`;
+
+/** Render page previews for a PDF session into private storage (idempotent per source file). */
+export async function renderSessionPreviews(sessionId: string): Promise<PreviewResult> {
+  const s = await prisma.importSession.findUniqueOrThrow({ where: { id: sessionId } });
+  if (s.format !== "PDF") return null;
+  const file = await prisma.storedFile.findUniqueOrThrow({ where: { id: s.fileId } });
+  const store = storage();
+  try {
+    return await renderPdfPages(await store.get(file.storageKey), async (n, png) => {
+      const key = previewKey(file.id, n);
+      if (!(await store.exists(key))) await store.put(key, png, "image/png");
+    });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** Read one rendered page preview after checking project access. */
+export async function readPreviewPage(viewer: Viewer, raw: { sessionId: string; page: number }) {
+  const s = await loadSession(viewer, raw.sessionId, "read");
+  const previews = (s.extractionMeta as { previews?: { pages: number } | null }).previews;
+  if (!previews || !Number.isInteger(raw.page) || raw.page < 1 || raw.page > previews.pages) throw notFound("Page preview");
+  return storage().get(previewKey(s.fileId, raw.page));
 }
 
 export async function markExtractionFailed(sessionId: string, message: string) {
