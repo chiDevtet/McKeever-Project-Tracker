@@ -8,8 +8,8 @@
 import { buildTree, remainingRange, type NodeTree } from "./capacity";
 import { addDays, type ISODate } from "./dates";
 import { nodeWeekStats } from "./metrics";
-import type { NodeInput, PlanData } from "./plan";
-import { expandAllNodes, expandLeadership, projectResolver, type Block } from "./staffing";
+import type { EntryInput, NodeInput, PlanData } from "./plan";
+import { blockHours, expandAllNodes, expandEntries, expandLeadership, nodeCalendarKey, projectResolver, resolverFor, type Block } from "./staffing";
 import { HOUR_MS, localMidnightMs, overlapMs } from "./tz";
 
 export interface GridCell {
@@ -155,4 +155,46 @@ export function buildGridModel(data: PlanData, weeks: ISODate[]): GridModel {
     tree,
     blocks,
   };
+}
+
+export interface DayDetail {
+  date: ISODate;
+  open: boolean;
+  calendarHours: number;
+  calendarStart: string;
+  calendarLabel: string;
+  weekly: number | null;
+  dayEntry: EntryInput | null;
+  blocks: EntryInput[];
+  /** What the engine counts for this row on this shift-start date. */
+  effective: { headcount: number; hours: number; personHours: number; source: "week" | "day" | "block" | "none" };
+}
+
+/** Day-by-day explanation of one row's week (calendar, weekly default, overrides, blocks). */
+export function nodeWeekDetail(data: PlanData, nodeKey: string, week: ISODate): DayDetail[] {
+  const node = data.nodes.find((n) => n.key === nodeKey);
+  if (!node) return [];
+  const cal = resolverFor(data, nodeCalendarKey(data, node));
+  const weekly = data.entries.find((e) => e.nodeKey === nodeKey && e.kind === "WEEK" && e.date === week)?.headcount ?? null;
+  const blocks = expandEntries(nodeKey, data.entries, cal, week, addDays(week, 6));
+  const out: DayDetail[] = [];
+  for (let i = 0; i < 7; i++) {
+    const date = addDays(week, i);
+    const day = cal.day(date);
+    const mine = blocks.filter((b) => b.shiftDate === date);
+    const personHours = mine.reduce((s, b) => s + b.headcount * blockHours(b), 0);
+    const headcount = mine.reduce((m, b) => Math.max(m, b.headcount), 0);
+    out.push({
+      date,
+      open: day.open,
+      calendarHours: day.hours,
+      calendarStart: day.start,
+      calendarLabel: day.label,
+      weekly,
+      dayEntry: data.entries.find((e) => e.nodeKey === nodeKey && e.kind === "DAY" && e.date === date) ?? null,
+      blocks: data.entries.filter((e) => e.nodeKey === nodeKey && e.kind === "BLOCK" && e.date === date),
+      effective: { headcount, hours: mine.length ? Math.round((personHours / Math.max(1, headcount)) * 100) / 100 : 0, personHours: Math.round(personHours * 100) / 100, source: mine[0]?.source === "leadership" ? "none" : (mine[0]?.source ?? "none") },
+    });
+  }
+  return out;
 }

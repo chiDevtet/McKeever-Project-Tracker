@@ -270,8 +270,6 @@ model Project {
   status        ProjectStatus @default(PRELIMINARY)
   description   String?
   timezone      String        @default("America/New_York")
-  // Monotonic counter used to issue stable display codes (A-0001).
-  activitySeq   Int           @default(0)
   createdById   String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt

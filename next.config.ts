@@ -5,9 +5,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Server-only packages with native or dynamic requires stay external to the bundle.
   serverExternalPackages: ["pg", "pg-boss", "@prisma/adapter-pg", "exceljs", "nodemailer", "playwright"],
-  experimental: {
-    serverActions: { bodySizeLimit: "2mb" },
-  },
+  // Do not write AGENTS.md into the repository during `next dev`.
+  agentRules: false,
   async headers() {
     return [
       {
