@@ -15,7 +15,7 @@ import { formatDate } from "@/domain/dates";
 import type { MoveRequest } from "@/domain/move";
 import type { PlanOp } from "@/domain/ops";
 import type { PlanData } from "@/domain/plan";
-import { proposeFromSource, sourceMoveRequest, type SourceRule } from "@/domain/source-apply";
+import { proposeFromSource, sourceChangesFromRecords, sourceMoveRequest, type SourceRule } from "@/domain/source-apply";
 import { formatTimestamp } from "@/lib/format";
 import { rpc, RpcError } from "@/lib/rpc-client";
 import { cn } from "@/lib/utils";
@@ -158,7 +158,7 @@ function VersionPanel({ versionId, plan, canEdit }: { versionId: string; plan: P
   const records = useMemo(() => {
     if (!view) return [];
     const q = search.toLowerCase();
-    return view.records.filter((r) => (!onlyChanged || r.changeKind !== "UNCHANGED") && (!onlyScope || r.role === "scope" || r.linkedActivityKeys.length) && (!q || `${r.externalId} ${r.name}`.toLowerCase().includes(q)));
+    return view.records.filter((r) => (!onlyChanged || r.changeKind !== "UNCHANGED") && (!onlyScope || (r.included && r.role === "scope") || r.linkedActivityKeys.length) && (!q || `${r.externalId} ${r.name}`.toLowerCase().includes(q)));
   }, [view, onlyChanged, onlyScope, search]);
   if (!view) return <p className="text-sm text-muted-foreground">Loading version…</p>;
   const acts = new Map(plan.activities.map((a) => [a.key, a]));
@@ -170,7 +170,7 @@ function VersionPanel({ versionId, plan, canEdit }: { versionId: string; plan: P
         <h2 className="text-sm font-semibold">
           {view.version.lineageName} v{view.version.versionNumber} “{view.version.label}”
         </h2>
-        <span className="text-xs text-muted-foreground">{view.records.length} reviewed records{view.version.comparedToId ? " · compared with the prior version" : ""}</span>
+        <span className="text-xs text-muted-foreground">{view.records.filter((r) => r.included).length} reviewed records of {view.records.length} source rows{view.version.comparedToId ? " · compared with the prior version" : ""}</span>
         <div className="ml-auto flex flex-wrap gap-2 text-xs">
           <label className="flex items-center gap-1">
             <input type="checkbox" checked={onlyScope} onChange={(e) => setOnlyScope(e.target.checked)} /> Our scope and linked rows
@@ -235,7 +235,7 @@ function VersionPanel({ versionId, plan, canEdit }: { versionId: string; plan: P
                   {r.finishActual ? " A" : ""}
                   {r.finishConstrained ? "*" : ""}
                 </td>
-                <td className="px-1">{r.role}</td>
+                <td className="px-1">{r.included ? r.role : <span className="text-muted-foreground">not selected</span>}</td>
                 <td className={cn("px-1", r.changeKind === "REMOVED" ? "text-destructive" : r.changeKind === "CHANGED" || r.changeKind === "RENAMED" ? "text-warning" : "text-muted-foreground")}>
                   {CHANGE_LABEL[r.changeKind] ?? r.changeKind}
                   {r.changes.length ? <div className="text-[10px]">{r.changes.map((c) => `${c.field}: ${String(c.before ?? "—")} → ${String(c.after ?? "—")}`).join("; ")}</div> : null}
@@ -348,14 +348,7 @@ function CreateActivitiesDialog({ plan, versionId, records, onClose, onDone }: {
 
 function SourceChangesDialog({ plan, version, onClose, onDone }: { plan: PlanData; version: VersionView; onClose: () => void; onDone: () => void }) {
   const [rule, setRule] = useState<SourceRule>("shift-with-source");
-  const changes = version.records
-    .filter((r) => r.linkedActivityKeys.length && (r.changeKind === "CHANGED" || r.changeKind === "REMOVED"))
-    .map((r) => {
-      const startChange = r.changes.find((c) => c.field === "start");
-      const finishChange = r.changes.find((c) => c.field === "finish");
-      const before = { start: (startChange?.before as string | null) ?? r.start, finish: (finishChange?.before as string | null) ?? r.finish };
-      return { externalId: r.externalId, name: r.name, before, after: r.changeKind === "REMOVED" ? null : { start: r.start, finish: r.finish }, removed: r.changeKind === "REMOVED", linkedActivityKeys: r.linkedActivityKeys };
-    });
+  const changes = sourceChangesFromRecords(version.records);
   const proposals = proposeFromSource(plan, changes, rule);
   const [selected, setSelected] = useState<Set<string>>(() => new Set(proposals.filter((p) => p.to).map((p) => `${p.externalId}|${p.activityKey}`)));
   const [preview, setPreview] = useState<MoveRequest | null>(null);

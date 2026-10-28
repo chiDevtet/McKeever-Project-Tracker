@@ -762,6 +762,8 @@ model SourceRecord {
   original          Json
   reviewed          Json
   inScope           Boolean       @default(false)
+  // false: present in the source but not selected during review (kept so later versions compare source-wide)
+  included          Boolean       @default(true)
   phaseId           String?
   areaId            String?
   systemId          String?

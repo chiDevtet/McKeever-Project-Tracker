@@ -16,7 +16,7 @@
     "worker": "tsx src/worker/index.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:dev": "prisma migrate dev && prisma generate",
     "db:seed": "tsx scripts/seed.ts",
     "db:seed:demo": "tsx scripts/seed-demo.ts",
     "admin:bootstrap": "tsx scripts/bootstrap-admin.ts",

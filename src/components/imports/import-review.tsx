@@ -507,13 +507,39 @@ function UncertainResolver({ row, sessionId, revision, onResolved }: { row: Row;
   );
 }
 
+const HEADER_GUESSES: Record<string, RegExp> = {
+  externalId: /^(activity|task)?\s*id$/i,
+  name: /^(activity|task)?\s*(name|description)$/i,
+  start: /^(early\s*)?start(\s*date)?$/i,
+  finish: /^(early\s*)?finish(\s*date)?$|^end(\s*date)?$/i,
+  originalDuration: /^(od|orig(inal)?\s*dur(ation)?|duration)$/i,
+  remainingDuration: /^(rd|rem(aining)?\s*dur(ation)?)$/i,
+  wbs: /^wbs(\s*(path|code|name))?$/i,
+};
+
+function guessColumns(header: string[]): Record<string, number | null> {
+  const out: Record<string, number | null> = {};
+  for (const [k, re] of Object.entries(HEADER_GUESSES)) {
+    const i = header.findIndex((h) => re.test(h.trim()));
+    out[k] = i >= 0 ? i + 1 : null;
+  }
+  return out;
+}
+
 function ColumnMapping({ sessionId, current, onDone }: { sessionId: string; current: unknown; onDone: () => Promise<unknown> }) {
   const [preview, setPreview] = useState<{ sheets: string[]; rows: string[][] } | null>(null);
   const cur = (current ?? {}) as { sheet?: string | null; headerRow?: number; dateFormat?: string; columns?: Record<string, number | null> };
   const [m, setM] = useState({ sheet: cur.sheet ?? null, headerRow: cur.headerRow ?? 1, dateFormat: cur.dateFormat ?? "auto", columns: { externalId: null, name: null, start: null, finish: null, originalDuration: null, remainingDuration: null, wbs: null, ...(cur.columns ?? {}) } as Record<string, number | null> });
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    void rpc("imports.sheetPreview", { sessionId, sheet: m.sheet }).then(setPreview, (e) => setError(e instanceof RpcError ? e.message : "Could not read the file"));
+    void rpc("imports.sheetPreview", { sessionId, sheet: m.sheet }).then(
+      (p) => {
+        setPreview(p);
+        // Suggest columns from common header names when nothing is mapped yet.
+        setM((prev) => (Object.values(prev.columns).some((c) => c !== null) ? prev : { ...prev, columns: guessColumns(p.rows[prev.headerRow - 1] ?? []) }));
+      },
+      (e) => setError(e instanceof RpcError ? e.message : "Could not read the file"),
+    );
   }, [sessionId, m.sheet]);
   const header = preview?.rows[m.headerRow - 1] ?? [];
   const fields: [string, string][] = [

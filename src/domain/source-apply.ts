@@ -22,6 +22,30 @@ export interface SourceChangeInput {
 
 export type SourceRule = "shift-with-source" | "align-to-source";
 
+/** Minimal shape of a committed source record with its comparison to the prior version. */
+export interface SourceRecordChange {
+  externalId: string;
+  name: string;
+  start: ISODate | null;
+  finish: ISODate | null;
+  changeKind: string;
+  changes: { field: string; before: unknown; after: unknown }[];
+  linkedActivityKeys: string[];
+}
+
+/** Linked records whose dates changed or which were removed, as proposal inputs. */
+export function sourceChangesFromRecords(records: SourceRecordChange[]): SourceChangeInput[] {
+  return records
+    .filter((r) => r.linkedActivityKeys.length && (r.changeKind === "CHANGED" || r.changeKind === "REMOVED"))
+    .map((r) => {
+      const startChange = r.changes.find((c) => c.field === "start");
+      const finishChange = r.changes.find((c) => c.field === "finish");
+      const before = { start: startChange ? ((startChange.before as ISODate | null) ?? null) : r.start, finish: finishChange ? ((finishChange.before as ISODate | null) ?? null) : r.finish };
+      const removed = r.changeKind === "REMOVED";
+      return { externalId: r.externalId, name: r.name, before, after: removed ? null : { start: r.start, finish: r.finish }, removed, linkedActivityKeys: r.linkedActivityKeys };
+    });
+}
+
 export interface SourceProposal {
   externalId: string;
   activityKey: string;

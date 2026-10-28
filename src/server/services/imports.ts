@@ -153,7 +153,10 @@ export async function storeExtraction(sessionId: string, ex: ExtractedSchedule, 
       await tx.importRow.deleteMany({ where: { sessionId } });
       const data: Prisma.ImportRowCreateManyInput[] = rows.map((r, i) => {
         const m = matchOf.get(r);
-        const carried = r.externalId && m?.status !== "DUPLICATE_ID" ? priorReviewed.get(r.externalId) : undefined;
+        // Carry the prior review by ID. A duplicate ID carries to every copy and a possible
+        // renumbering carries from its candidate, so a reviewed row that became ambiguous
+        // stays included and validation requires the operator to resolve it.
+        const carried = (r.externalId ? priorReviewed.get(r.externalId) : undefined) ?? (m?.status === "UNCERTAIN" ? (m.candidates ?? []).map((c) => priorReviewed.get(c)).find((p) => p?.included) : undefined);
         const reviewed = reviewedFromOriginal(r);
         if (carried) reviewed.role = (carried.reviewed as unknown as Partial<Reviewed>).role ?? reviewed.role;
         return {
@@ -165,7 +168,7 @@ export async function storeExtraction(sessionId: string, ex: ExtractedSchedule, 
           wbsPath: r.wbsPath,
           original: r as unknown as Prisma.InputJsonValue,
           reviewed: reviewed as unknown as Prisma.InputJsonValue,
-          include: Boolean(carried),
+          include: carried?.included ?? false,
           phaseId: carried?.phaseId ?? null,
           areaId: carried?.areaId ?? null,
           systemId: carried?.systemId ?? null,
@@ -382,8 +385,19 @@ export async function commitImport(viewer: Viewer, raw: { sessionId: string; exp
       const version = await tx.sourceVersion.create({
         data: { lineageId: s.lineageId, projectId: s.projectId, versionNumber: (last?.versionNumber ?? 0) + 1, label: s.label, sourceDate: s.sourceDate, dataDate: meta.dataDate && isISODate(meta.dataDate) ? dateToDb(meta.dataDate) : null, fileId: s.fileId, sha256: s.fileSha256, importSessionId: s.id, comparedToId: s.compareToVersionId, committedById: viewer.userId, summary: { counts: meta.counts ?? {}, pageCount: meta.pageCount ?? null, title: meta.title ?? null, runDate: meta.runDate ?? null } },
       });
-      const rows = await tx.importRow.findMany({ where: { sessionId: s.id, include: true }, orderBy: { rowIndex: "asc" } });
-      const records: Prisma.SourceRecordCreateManyInput[] = rows.map((r) => {
+      const allRows = await tx.importRow.findMany({ where: { sessionId: s.id, kind: { not: "WBS" } }, orderBy: { rowIndex: "asc" } });
+      const rows = allRows.filter((r) => r.include);
+      // Rows not selected during review are kept too (first occurrence per ID), so the
+      // next version compares against the whole source rather than only the reviewed scope.
+      const includedIds = new Set(rows.map((r) => (r.reviewed as unknown as Reviewed).externalId));
+      const others: typeof allRows = [];
+      for (const r of allRows) {
+        const id = (r.reviewed as unknown as Reviewed).externalId;
+        if (r.include || !id || includedIds.has(id)) continue;
+        includedIds.add(id);
+        others.push(r);
+      }
+      const records: Prisma.SourceRecordCreateManyInput[] = [...rows, ...others].map((r) => {
         const v = r.reviewed as unknown as Reviewed;
         const o = r.original as unknown as ExtractedSchedule["rows"][number];
         const d = r.matchDetail as { changes?: unknown[] };
@@ -404,7 +418,8 @@ export async function commitImport(viewer: Viewer, raw: { sessionId: string; exp
           finishConstrained: o.finish?.constraint ?? false,
           original: o as unknown as Prisma.InputJsonValue,
           reviewed: v as unknown as Prisma.InputJsonValue,
-          inScope: v.role === "scope",
+          inScope: r.include && v.role === "scope",
+          included: r.include,
           phaseId: r.phaseId,
           areaId: r.areaId,
           systemId: r.systemId,
@@ -419,7 +434,7 @@ export async function commitImport(viewer: Viewer, raw: { sessionId: string; exp
         for (const p of prior) {
           if (kept.has(p.externalId)) continue;
           const renamedTo = rows.find((r) => (r.reviewed as unknown as Reviewed).sameAs === p.externalId);
-          records.push({ versionId: version.id, externalId: p.externalId, kind: p.kind, name: p.name, wbsPath: p.wbsPath, pageNumber: p.pageNumber, start: p.start, finish: p.finish, originalDuration: p.originalDuration, remainingDuration: p.remainingDuration, original: p.original as Prisma.InputJsonValue, reviewed: p.reviewed as Prisma.InputJsonValue, inScope: p.inScope, phaseId: p.phaseId, areaId: p.areaId, systemId: p.systemId, changeKind: "REMOVED", changes: (renamedTo ? [{ field: "externalId", before: p.externalId, after: (renamedTo.reviewed as unknown as Reviewed).externalId }] : []) as Prisma.InputJsonValue });
+          records.push({ versionId: version.id, externalId: p.externalId, kind: p.kind, name: p.name, wbsPath: p.wbsPath, pageNumber: p.pageNumber, start: p.start, finish: p.finish, originalDuration: p.originalDuration, remainingDuration: p.remainingDuration, original: p.original as Prisma.InputJsonValue, reviewed: p.reviewed as Prisma.InputJsonValue, inScope: p.inScope, included: p.included, phaseId: p.phaseId, areaId: p.areaId, systemId: p.systemId, changeKind: "REMOVED", changes: (renamedTo ? [{ field: "externalId", before: p.externalId, after: (renamedTo.reviewed as unknown as Reviewed).externalId }] : []) as Prisma.InputJsonValue });
           if (renamedTo) {
             // Same activity under a new ID: carry existing source links to the new ID.
             const links = await tx.activitySourceLink.findMany({ where: { projectId: s.projectId, lineageId: s.lineageId, externalId: p.externalId } });
@@ -428,7 +443,7 @@ export async function commitImport(viewer: Viewer, raw: { sessionId: string; exp
         }
       }
       for (let i = 0; i < records.length; i += 1000) await tx.sourceRecord.createMany({ data: records.slice(i, i + 1000) });
-      await audit(tx, viewer, { projectId: s.projectId, action: "import.commit", entityType: "SourceVersion", entityId: version.id, summary: `Committed source version ${version.versionNumber} “${s.label}” with ${rows.length} reviewed rows`, after: { counts: meta.counts ?? {}, removed: meta.removedFromPrior?.length ?? 0 } });
+      await audit(tx, viewer, { projectId: s.projectId, action: "import.commit", entityType: "SourceVersion", entityId: version.id, summary: `Committed source version ${version.versionNumber} “${s.label}” with ${rows.length} reviewed rows (${others.length} further source rows kept for comparison)`, after: { counts: meta.counts ?? {}, removed: meta.removedFromPrior?.length ?? 0 } });
       return { versionId: version.id, versionNumber: version.versionNumber, alreadyCommitted: false };
     },
     { timeout: 120_000 },
@@ -467,7 +482,7 @@ export async function versionRecords(viewer: Viewer, raw: { versionId: string; o
   const links = await prisma.activitySourceLink.findMany({ where: { projectId: v.projectId, lineageId: v.lineageId, externalId: { in: records.map((r) => r.externalId) } } });
   return {
     version: { id: v.id, versionNumber: v.versionNumber, label: v.label, lineageId: v.lineageId, lineageName: v.lineage.name, sourceDate: dateFromDb(v.sourceDate), dataDate: dateFromDb(v.dataDate), comparedToId: v.comparedToId },
-    records: records.map((r) => ({ id: r.id, externalId: r.externalId, kind: r.kind, name: r.name, page: r.pageNumber, start: dateFromDb(r.start), finish: dateFromDb(r.finish), originalDuration: r.originalDuration === null ? null : Number(r.originalDuration), startActual: r.startActual, finishActual: r.finishActual, startConstrained: r.startConstrained, finishConstrained: r.finishConstrained, inScope: r.inScope, role: (r.reviewed as unknown as Reviewed).role, changeKind: r.changeKind, changes: r.changes as { field: string; before: unknown; after: unknown }[], phaseId: r.phaseId, areaId: r.areaId, systemId: r.systemId, wbsPath: r.wbsPath, linkedActivityKeys: links.filter((l) => l.externalId === r.externalId).map((l) => l.activityKey) })),
+    records: records.map((r) => ({ id: r.id, externalId: r.externalId, kind: r.kind, name: r.name, page: r.pageNumber, start: dateFromDb(r.start), finish: dateFromDb(r.finish), originalDuration: r.originalDuration === null ? null : Number(r.originalDuration), startActual: r.startActual, finishActual: r.finishActual, startConstrained: r.startConstrained, finishConstrained: r.finishConstrained, inScope: r.inScope, included: r.included, role: (r.reviewed as unknown as Reviewed).role, changeKind: r.changeKind, changes: r.changes as { field: string; before: unknown; after: unknown }[], phaseId: r.phaseId, areaId: r.areaId, systemId: r.systemId, wbsPath: r.wbsPath, linkedActivityKeys: links.filter((l) => l.externalId === r.externalId).map((l) => l.activityKey) })),
   };
 }
 
