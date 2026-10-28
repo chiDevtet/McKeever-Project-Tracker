@@ -119,17 +119,21 @@ export function computePlanningIssues(data: PlanData): PlanningIssue[] {
     }
   }
 
+  const phaseNames = new Map(data.phases.map((p) => [p.id, p.name]));
   for (const m of data.milestones) {
     if (m.reviewStatus !== "NEEDS_REVIEW") continue;
     const distinct = new Set(m.candidates.map((c) => c.date ?? "unspecified"));
+    const label = `${m.phaseId ? `${phaseNames.get(m.phaseId) ?? ""} ` : ""}${m.code}${m.name && m.name !== m.code ? ` (${m.name})` : ""}`;
     out.push({
       id: `milestone-unconfirmed:${m.id}`,
       severity: "info",
       category: "milestone-unconfirmed",
       message:
         distinct.size > 1
-          ? `${m.code} ${m.name}: sources disagree (${m.candidates.map((c) => `${c.date ? formatDate(c.date) : "unspecified"} per ${c.label}`).join("; ")}). Needs operator review.`
-          : `${m.code} ${m.name}: candidate date needs operator review`,
+          ? `${label}: sources disagree (${m.candidates.map((c) => `${c.date ? formatDate(c.date) : "unspecified"} per ${c.label}`).join("; ")}). Needs operator review.`
+          : m.candidates.some((c) => c.date)
+            ? `${label}: candidate date ${formatDate(m.candidates.find((c) => c.date)!.date)} needs operator review`
+            : `${label}: no date specified by the source`,
       refs: [{ kind: "milestone", key: m.id, label: `${m.code} ${m.name}` }],
     });
   }

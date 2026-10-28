@@ -7,7 +7,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addDays, formatDate, formatDayMonth, isoWeekNumber, type ISODate } from "@/domain/dates";
 import type { GridModel } from "@/domain/grid";
 import type { PeriodMeasure } from "@/domain/metrics";
-import type { PlanOp } from "@/domain/ops";
 import { cn } from "@/lib/utils";
 
 export type GridRowData =

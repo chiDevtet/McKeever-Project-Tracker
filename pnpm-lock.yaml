@@ -53,6 +53,9 @@ importers:
       pg-boss:
         specifier: 12.38.0
         version: 12.38.0(@opentelemetry/api@1.10.0)
+      playwright:
+        specifier: 1.63.0
+        version: 1.63.0
       radix-ui:
         specifier: 1.8.1
         version: 1.8.1(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.9(react@19.2.9))(react@19.2.9)
@@ -71,6 +74,9 @@ importers:
       tailwind-merge:
         specifier: 3.7.0
         version: 3.7.0
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
       zod:
         specifier: 4.6.7
         version: 4.6.7
@@ -102,9 +108,6 @@ importers:
       eslint-config-next:
         specifier: 16.4.3
         version: 16.4.3(@typescript-eslint/parser@8.72.1(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
-      playwright:
-        specifier: 1.63.0
-        version: 1.63.0
       postcss:
         specifier: 8.5.32
         version: 8.5.32
@@ -114,9 +117,6 @@ importers:
       tailwindcss:
         specifier: 4.3.3
         version: 4.3.3
-      tsx:
-        specifier: 4.23.15
-        version: 4.23.15
       tw-animate-css:
         specifier: 1.4.0
         version: 1.4.0
