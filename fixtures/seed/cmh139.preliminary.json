@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 1,
+  "classification": "preliminary source candidates for operator review",
+  "workspace": {
+    "name": "McKeever & Niekamp Electric",
+    "applicationDisplayName": "M&N FieldOps"
+  },
+  "project": {
+    "code": "CMH139",
+    "name": "AWS CMH139",
+    "status": "preliminary",
+    "customer": "ACE Electric",
+    "generalContractor": "Gray Construction",
+    "owner": "AWS",
+    "timezone": "America/New_York"
+  },
+  "calendar": {
+    "weekStartsOn": "Monday",
+    "workingDays": [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday"
+    ],
+    "hoursPerWorkingDay": 8,
+    "exceptions": [],
+    "shiftClockTimesRequireConfiguration": true
+  },
+  "systems": [
+    {
+      "key": "fire-alarm",
+      "name": "Fire alarm"
+    },
+    {
+      "key": "vesda",
+      "name": "VESDA smoke detection"
+    },
+    {
+      "key": "responder-radio",
+      "name": "Emergency responder radio",
+      "sourceAliasesForReview": [
+        "ERRS",
+        "ERRC"
+      ]
+    },
+    {
+      "key": "cellular",
+      "name": "Cellular boosting"
+    }
+  ],
+  "personnelCandidates": [
+    {
+      "name": "Tyler Sisia",
+      "projectRole": "Project manager",
+      "plannedOnsiteCommitment": "full time initially with adjustable schedule",
+      "assignmentDates": null,
+      "loginEmail": null
+    },
+    {
+      "name": null,
+      "displayName": "TBD",
+      "projectRole": "Main foreman",
+      "responsibilitySystems": [
+        "fire-alarm",
+        "vesda",
+        "responder-radio",
+        "cellular"
+      ],
+      "assignmentDates": null
+    }
+  ],
+  "sources": [
+    {
+      "key": "ace-milestones-2026-10-23",
+      "kind": "reviewed email milestone table",
+      "sourceDate": "2026-10-23",
+      "status": "candidate"
+    },
+    {
+      "key": "ace-milestones-2026-10-16",
+      "kind": "earlier email milestone table",
+      "sourceDate": "2026-10-16",
+      "status": "historical alternative"
+    },
+    {
+      "key": "gray-pdf-2026-10-15",
+      "kind": "construction schedule PDF",
+      "path": "fixtures/source/CMH139_Preliminary_Schedule_2026-10-15.pdf",
+      "pageCount": 59
+    }
+  ],
+  "phases": [
+    {
+      "key": "phase-1",
+      "name": "Phase 1",
+      "romps": [
+        1,
+        3
+      ],
+      "milestoneCandidates": {
+        "SWD": "2027-05-20",
+        "FEA": "2027-09-27",
+        "NEA": "2027-10-11",
+        "H2C": "2027-10-29",
+        "PFHO": "2027-11-26"
+      },
+      "sourceKey": "ace-milestones-2026-10-23",
+      "status": "needs operator review"
+    },
+    {
+      "key": "phase-2",
+      "name": "Phase 2",
+      "romps": [
+        2,
+        4
+      ],
+      "milestoneCandidates": {
+        "SWD": "2027-05-31",
+        "FEA": null,
+        "NEA": "2027-11-29",
+        "H2C": "2027-12-17",
+        "PFHO": "2028-01-07"
+      },
+      "sourceKey": "ace-milestones-2026-10-23",
+      "status": "needs operator review"
+    },
+    {
+      "key": "phase-3",
+      "name": "Phase 3",
+      "romps": [
+        5,
+        7
+      ],
+      "milestoneCandidates": {
+        "SWD": "2027-05-31",
+        "FEA": null,
+        "NEA": "2027-12-27",
+        "H2C": "2028-01-14",
+        "PFHO": "2028-02-04"
+      },
+      "sourceKey": "ace-milestones-2026-10-23",
+      "status": "needs operator review"
+    },
+    {
+      "key": "phase-4",
+      "name": "Phase 4",
+      "romps": [
+        6,
+        8
+      ],
+      "milestoneCandidates": {
+        "SWD": "2027-06-18",
+        "FEA": null,
+        "NEA": "2028-01-24",
+        "H2C": "2028-02-11",
+        "PFHO": "2028-03-03"
+      },
+      "sourceKey": "ace-milestones-2026-10-23",
+      "status": "needs operator review"
+    },
+    {
+      "key": "phase-5",
+      "name": "Phase 5",
+      "romps": [
+        9,
+        11
+      ],
+      "milestoneCandidates": {
+        "SWD": "2027-07-23",
+        "FEA": null,
+        "NEA": "2028-02-21",
+        "H2C": "2028-03-10",
+        "PFHO": "2028-03-31"
+      },
+      "sourceKey": "ace-milestones-2026-10-23",
+      "status": "needs operator review"
+    },
+    {
+      "key": "phase-6",
+      "name": "Phase 6",
+      "romps": [
+        10,
+        12
+      ],
+      "milestoneCandidates": {
+        "SWD": "2027-08-27",
+        "FEA": null,
+        "NEA": "2028-03-20",
+        "H2C": "2028-04-07",
+        "PFHO": "2028-04-28"
+      },
+      "sourceKey": "ace-milestones-2026-10-23",
+      "status": "needs operator review"
+    }
+  ],
+  "sourceDiscrepancies": [
+    {
+      "phase": 1,
+      "milestone": "NEA",
+      "earlier": {
+        "date": "2027-10-18",
+        "sourceKey": "ace-milestones-2026-10-16"
+      },
+      "laterCandidate": {
+        "date": "2027-10-11",
+        "sourceKey": "ace-milestones-2026-10-23"
+      },
+      "resolution": "operator review before adoption"
+    }
+  ],
+  "workforcePlans": [],
+  "actualProgress": [],
+  "scopeItemsForConfirmation": [
+    "Conduit exclusions and division responsibility",
+    "Responder-radio support responsibility",
+    "Radio and cellular work windows",
+    "Leadership assignment dates and main foreman name"
+  ]
+}

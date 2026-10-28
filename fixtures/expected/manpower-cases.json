@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "classification": "illustrative verification fixtures only; not actual CMH139 staffing",
+  "cases": [
+    {
+      "id": "standard-week",
+      "calendar": {
+        "openDays": 5,
+        "hoursPerDay": 8
+      },
+      "resources": {
+        "installers": 8,
+        "onsitePM": 1,
+        "onsiteForeman": 1
+      },
+      "expected": {
+        "peakConcurrentOnsite": 10,
+        "installerHours": 320,
+        "leadershipHours": 80,
+        "totalHours": 400
+      }
+    },
+    {
+      "id": "nested-allocation",
+      "capacity": 8,
+      "phaseReservation": 8,
+      "childReservations": [
+        {
+          "area": "electrical room",
+          "count": 3
+        },
+        {
+          "area": "data hall",
+          "count": 5
+        }
+      ],
+      "expected": {
+        "installerHeadcount": 8,
+        "unallocatedWithinPhase": 0
+      }
+    },
+    {
+      "id": "dedicated-split",
+      "sharedCapacityBeforeSplit": 8,
+      "dedicatedReservation": 3,
+      "expected": {
+        "dedicated": 3,
+        "sharedRemaining": 5,
+        "installerHeadcount": 8
+      }
+    },
+    {
+      "id": "part-time-onsite-PM",
+      "calendar": {
+        "openDays": 5,
+        "hoursPerDay": 8
+      },
+      "resources": {
+        "installers": 8,
+        "foremanDays": 5,
+        "onsitePMDays": 2
+      },
+      "expected": {
+        "peakConcurrentOnsite": 10,
+        "installerHours": 320,
+        "leadershipHours": 56,
+        "totalHours": 376,
+        "averageEquivalentOnsiteStaffing": 9.4
+      }
+    },
+    {
+      "id": "six-tens",
+      "calendar": {
+        "openDays": 6,
+        "hoursPerDay": 10
+      },
+      "resources": {
+        "installers": 8
+      },
+      "expected": {
+        "peakConcurrentInstallers": 8,
+        "installerHours": 480
+      }
+    },
+    {
+      "id": "sequential-shifts",
+      "shifts": [
+        {
+          "start": "06:00",
+          "finish": "14:00",
+          "installers": 8
+        },
+        {
+          "start": "14:00",
+          "finish": "22:00",
+          "installers": 8
+        }
+      ],
+      "expected": {
+        "peakConcurrentInstallers": 8,
+        "dailyInstallerHours": 128,
+        "uniqueIndividualsDuringDay": "not established by anonymous pools"
+      }
+    }
+  ]
+}

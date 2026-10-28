@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "fixturePath": "fixtures/source/CMH139_Preliminary_Schedule_2026-10-15.pdf",
+  "pageCount": 59,
+  "expectedActivities": [
+    {
+      "externalId": "P1ER.1140",
+      "pageNumber": 26,
+      "label": "Phase 1 / Elec Rm - Fire Alarm / VESDA",
+      "start": "2027-06-01",
+      "finish": "2027-06-07",
+      "printedOriginalDuration": 5
+    },
+    {
+      "externalId": "P1RP.1210",
+      "pageNumber": 28,
+      "label": "Phase 1 / Data Hall - Fire Alarm VESDA",
+      "start": "2027-06-21",
+      "finish": "2027-07-02",
+      "printedOriginalDuration": 10
+    },
+    {
+      "externalId": "P1CX.2000",
+      "pageNumber": 31,
+      "label": "Phase 1 / Cx - Fire Alarm Programming & Pretest",
+      "start": "2027-07-06",
+      "finish": "2027-07-07",
+      "printedOriginalDuration": 2
+    }
+  ],
+  "rules": [
+    "Match by external activity ID and inspect reviewed Start/Finish values.",
+    "Printed durations are not manpower counts or labor-hour estimates.",
+    "These sample rows are not the complete extracted project scope.",
+    "Source adoption is reviewed; extraction alone does not modify the working plan."
+  ]
+}
