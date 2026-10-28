@@ -1,0 +1,62 @@
+{
+  "package": "M&N FieldOps build handoff",
+  "version": "1.0",
+  "date": "2026-10-28",
+  "files": [
+    {
+      "path": "BUILD_PACK_README.md",
+      "sizeBytes": 2878,
+      "sha256": "246bea6e623cc77e933c132e02b23f094cb5f4c9afd391141734112ff24180ba"
+    },
+    {
+      "path": "BUILD_PROMPT.txt",
+      "sizeBytes": 22933,
+      "sha256": "046cf196f6eefe9c948c7a620e0eb296aa23cfd9a38692033a68651508d35a0b"
+    },
+    {
+      "path": "docs/ACCEPTANCE.md",
+      "sizeBytes": 6222,
+      "sha256": "3912c03d48a5f3a2d64ca9bbf264508a6077f05f36bd48cd9a3d77910a8a90b2"
+    },
+    {
+      "path": "docs/REFERENCES.md",
+      "sizeBytes": 2111,
+      "sha256": "08a631b85e1258774b09ad35b3394fac95b18a5bd5c72b3928798eaf467baf56"
+    },
+    {
+      "path": "docs/SPEC.md",
+      "sizeBytes": 39048,
+      "sha256": "fc800f37a3905744b9628596be1dd1948b84f4a7eabbe57ad0166c18ebbbe368"
+    },
+    {
+      "path": "docs/TECHNICAL_DECISIONS.md",
+      "sizeBytes": 5611,
+      "sha256": "b934c2f0ba3bb7246ce5b9afee5b217767781ddfb40fbbd80e471a9d58463953"
+    },
+    {
+      "path": "docs/reference/Low_Voltage_Planning_App_Specification_v1.docx",
+      "sizeBytes": 56040,
+      "sha256": "e674d594b71d65aa167f97f21f9c144dbd80ea4f53f453f26e958d33c057adb4"
+    },
+    {
+      "path": "fixtures/expected/cmh139.source-activities.json",
+      "sizeBytes": 1154,
+      "sha256": "291d3704b08c79c4f50e6adf3bb47b93f8fdb900e0ff5652bb19e81b1d15bfd0"
+    },
+    {
+      "path": "fixtures/expected/manpower-cases.json",
+      "sizeBytes": 2276,
+      "sha256": "7349ce62139b812e79420fe448b07a07fcb4b43e49528b5d597054b9ab157d13"
+    },
+    {
+      "path": "fixtures/seed/cmh139.preliminary.json",
+      "sizeBytes": 5066,
+      "sha256": "e88e518f1db08ac9cbaacb02d0b2d66a8e4e925975d80148a5af9f2e4750f47a"
+    },
+    {
+      "path": "fixtures/source/CMH139_Preliminary_Schedule_2026-10-15.pdf",
+      "sizeBytes": 3311597,
+      "sha256": "70dbee278610791c1dc775f974be7a84d39d0d66bec97a3eb5b246ef2a6d6822"
+    }
+  ]
+}
