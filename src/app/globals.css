@@ -1,0 +1,105 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * M&N FieldOps theme: light neutral canvas, white planning surfaces,
+ * charcoal navigation, restrained brand accent. --brand is overridable from
+ * workspace settings (inline style on <html>).
+ */
+:root {
+  --radius: 0.375rem;
+  --brand: #1d4f7a;
+  --brand-foreground: #ffffff;
+  --canvas: #f4f4f2;
+  --nav: #24272b;
+  --nav-foreground: #e9eaec;
+  --nav-muted: #9ea3aa;
+  --background: #ffffff;
+  --foreground: #1c1e21;
+  --card: #ffffff;
+  --card-foreground: #1c1e21;
+  --popover: #ffffff;
+  --popover-foreground: #1c1e21;
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-foreground);
+  --secondary: #eeeeec;
+  --secondary-foreground: #24272b;
+  --muted: #f1f1ef;
+  --muted-foreground: #5f646b;
+  --accent: #e8eef4;
+  --accent-foreground: #1c1e21;
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
+  --warning: #9a5b00;
+  --warning-bg: #fff4dc;
+  --success: #1f6f43;
+  --success-bg: #e6f4ec;
+  --border: #dcdcd8;
+  --input: #d4d4cf;
+  --ring: var(--brand);
+  --series-installer: #2a78d6;
+  --series-leadership: #eb6834;
+  --series-limit: #24272b;
+  --closed: #ececea;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-canvas: var(--canvas);
+  --color-nav: var(--nav);
+  --color-nav-foreground: var(--nav-foreground);
+  --color-nav-muted: var(--nav-muted);
+  --color-brand: var(--brand);
+  --color-closed: var(--closed);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    font-size: 14px;
+  }
+  body {
+    @apply bg-canvas text-foreground antialiased;
+    font-feature-settings: "tnum" 1;
+  }
+}
+
+/* Hatched fill used for closed calendar cells; a text label always accompanies it. */
+.hatch-closed {
+  background-image: repeating-linear-gradient(135deg, var(--closed) 0 6px, transparent 6px 12px);
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

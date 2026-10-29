@@ -1,0 +1,78 @@
+# Production-style stack for one Ubuntu VPS: Caddy (HTTPS) -> web, plus the
+# worker and a one-off migration job. PostgreSQL is Neon in production; the
+# "local-db" profile adds a PostgreSQL container for trials and restore drills.
+#
+#   cp .env.production.example .env.production   # fill in secrets
+#   docker compose --env-file .env.production up -d --build
+#
+name: mne-fieldops
+
+x-app-env: &app-env
+  env_file: [.env.production]
+  environment:
+    APP_ENV: production
+    LOCAL_STORAGE_DIR: /data/storage
+
+services:
+  migrate:
+    image: ${FIELDOPS_IMAGE:-mne-fieldops}-worker:${FIELDOPS_TAG:-latest}
+    build: { context: ., target: worker }
+    <<: *app-env
+    depends_on:
+      postgres: { condition: service_healthy, required: false }
+    command: ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+    restart: "no"
+
+  web:
+    image: ${FIELDOPS_IMAGE:-mne-fieldops}-web:${FIELDOPS_TAG:-latest}
+    build: { context: ., target: web }
+    <<: *app-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    volumes: [storage:/data/storage]
+    restart: unless-stopped
+    expose: ["3000"]
+
+  worker:
+    image: ${FIELDOPS_IMAGE:-mne-fieldops}-worker:${FIELDOPS_TAG:-latest}
+    build: { context: ., target: worker }
+    <<: *app-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    volumes: [storage:/data/storage]
+    restart: unless-stopped
+    # One heavy PDF job at a time; Chromium needs a larger /dev/shm.
+    shm_size: 512m
+    mem_limit: 2g
+
+  caddy:
+    image: caddy:2.10.2
+    depends_on: [web]
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+  postgres:
+    profiles: [local-db]
+    image: postgres:16.10-bookworm
+    environment:
+      POSTGRES_USER: fieldops
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:-fieldops_local}
+      POSTGRES_DB: mne_fieldops
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fieldops -d mne_fieldops"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  storage:
+  caddy_data:
+  caddy_config:
+  pgdata:

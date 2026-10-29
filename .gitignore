@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# next.js / build
+.next/
+out/
+build/
+dist/
+next-env.d.ts
+*.tsbuildinfo
+
+# generated prisma client
+src/generated/
+
+# local private data: storage, backups, generated exports, test output
+.data/
+storage/
+backups/
+test-results/
+playwright-report/
+blob-report/
+coverage/
+artifacts/
+
+# environment and secrets
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# OS / editor
+.DS_Store
+*.log

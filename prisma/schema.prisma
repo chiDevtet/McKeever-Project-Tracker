@@ -1,0 +1,1083 @@
+// M&N FieldOps persistent model.
+//
+// Conventions
+// - Construction dates are date-only (@db.Date). Timed staffing is stored as
+//   local wall-clock "HH:MM" strings on a shift-start date and resolved to
+//   timezone-aware instants by the domain engine using the calendar timezone.
+// - Plan-scoped records (calendar, activities, links, allocation nodes,
+//   staffing entries, leadership assignments, phase windows) carry planId so a
+//   scenario is an editable branch of the same model. `key` is a lineage id
+//   shared by copies of the same record across plans.
+// - Progress, source links, and milestones are project-scoped and keyed by
+//   activity lineage key so scenarios and promotion never rewrite actuals.
+// - Totals are never stored; the domain engine derives them from inputs.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Better Auth core tables (user, session, account, verification)
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  workspaceMember WorkspaceMember?
+  memberships     ProjectMembership[]
+  person          Person?
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ---------------------------------------------------------------------------
+// Workspace, access, personnel
+// ---------------------------------------------------------------------------
+
+enum WorkspaceRole {
+  ADMINISTRATOR
+  MEMBER
+}
+
+enum ProjectRole {
+  PROJECT_MANAGER
+  INTERNAL_VIEWER
+  FOREMAN_VIEWER
+}
+
+model Workspace {
+  id                 String   @id @default(uuid())
+  name               String
+  appDisplayName     String   @default("M&N FieldOps")
+  brandColor         String   @default("#1d4f7a")
+  logoFileId         String?
+  defaultTimezone    String   @default("America/New_York")
+  // Division forecast weekly buckets use this timezone.
+  divisionTimezone   String   @default("America/New_York")
+  leadershipRoles    String[] @default(["Project manager", "Main foreman", "Foreman", "Superintendent"])
+  installerRoles     String[] @default(["Installer"])
+  milestoneCodes     String[] @default(["SWD", "FEA", "NEA", "H2C", "PFHO"])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  members      WorkspaceMember[]
+  invitations  Invitation[]
+  projects     Project[]
+  people       Person[]
+  organizations Organization[]
+  availability AvailabilityLimit[]
+  presets      ExportPreset[]
+  files        StoredFile[]
+  jobs         BackgroundJob[]
+  audit        AuditEvent[]
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid())
+  workspaceId String
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String        @unique
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        WorkspaceRole @default(MEMBER)
+  disabledAt  DateTime?
+  createdAt   DateTime      @default(now())
+
+  @@index([workspaceId])
+}
+
+model Invitation {
+  id            String        @id @default(uuid())
+  workspaceId   String
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  email         String
+  name          String
+  workspaceRole WorkspaceRole @default(MEMBER)
+  // [{ projectId, role }]
+  projectGrants Json          @default("[]")
+  tokenHash     String        @unique
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  revokedAt     DateTime?
+  invitedById   String?
+  createdAt     DateTime      @default(now())
+
+  @@index([workspaceId, email])
+}
+
+model ProjectMembership {
+  id          String      @id @default(uuid())
+  projectId   String
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        ProjectRole
+  grantedById String?
+  createdAt   DateTime    @default(now())
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+// A personnel record is independent of any login account.
+model Person {
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  displayName String
+  title       String?
+  email       String?
+  phone       String?
+  userId      String?   @unique
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  notes       String?
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  leadership LeadershipAssignment[]
+
+  @@index([workspaceId])
+}
+
+model Organization {
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  parties  ProjectParty[]
+  contacts Contact[]
+
+  @@unique([workspaceId, name])
+}
+
+enum PartyRole {
+  CUSTOMER
+  GENERAL_CONTRACTOR
+  OWNER
+  OTHER
+}
+
+model ProjectParty {
+  id             String       @id @default(uuid())
+  projectId      String
+  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           PartyRole
+  label          String?
+
+  @@unique([projectId, organizationId, role])
+}
+
+// Contacts never create app accounts automatically.
+model Contact {
+  id             String        @id @default(uuid())
+  projectId      String
+  project        Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  name           String
+  title          String?
+  email          String?
+  phone          String?
+  notes          String?
+  createdAt      DateTime      @default(now())
+
+  @@index([projectId])
+}
+
+// ---------------------------------------------------------------------------
+// Project structure
+// ---------------------------------------------------------------------------
+
+enum ProjectStatus {
+  PRELIMINARY
+  ACTIVE
+  ON_HOLD
+  COMPLETE
+  ARCHIVED
+}
+
+model Project {
+  id            String        @id @default(uuid())
+  workspaceId   String
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  code          String
+  name          String
+  status        ProjectStatus @default(PRELIMINARY)
+  description   String?
+  timezone      String        @default("America/New_York")
+  createdById   String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  memberships   ProjectMembership[]
+  parties       ProjectParty[]
+  contacts      Contact[]
+  systems       System[]
+  phases        Phase[]
+  areas         Area[]
+  milestones    Milestone[]
+  plans         Plan[]
+  progress      ActivityProgress[]
+  progressEvents ProgressEvent[]
+  sourceLinks   ActivitySourceLink[]
+  lineages      SourceLineage[]
+  imports       ImportSession[]
+  snapshots     PlanSnapshot[]
+  reports       GeneratedReport[]
+  submissions   Submission[]
+  documents     ProjectDocument[]
+
+  @@unique([workspaceId, code])
+}
+
+model System {
+  id            String    @id @default(uuid())
+  projectId     String
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  key           String
+  name          String
+  // Source labels (e.g. ERRS, ERRC) kept for review, not separate systems.
+  sourceAliases String[]  @default([])
+  sortOrder     Int       @default(0)
+  archivedAt    DateTime?
+
+  @@unique([projectId, key])
+}
+
+model Phase {
+  id          String  @id @default(uuid())
+  projectId   String
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  key         String
+  name        String
+  description String?
+  sortOrder   Int     @default(0)
+
+  areas      PhaseArea[]
+  milestones Milestone[]
+
+  @@unique([projectId, key])
+}
+
+enum AreaKind {
+  BUILDING
+  ROMP
+  DATA_HALL
+  ROOM
+  ZONE
+  OTHER
+}
+
+// Optional location hierarchy; phase membership is separate (PhaseArea).
+model Area {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentId  String?
+  parent    Area?    @relation("AreaTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  Area[]   @relation("AreaTree")
+  kind      AreaKind @default(OTHER)
+  name      String
+  code      String?
+  sortOrder Int      @default(0)
+
+  phases PhaseArea[]
+
+  @@index([projectId])
+}
+
+model PhaseArea {
+  phaseId String
+  phase   Phase  @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  areaId  String
+  area    Area   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@id([phaseId, areaId])
+}
+
+enum MilestoneReview {
+  NEEDS_REVIEW
+  CONFIRMED
+}
+
+// External target dates. They constrain installation work only through
+// explicit ActivityMilestone links.
+model Milestone {
+  id             String          @id @default(uuid())
+  projectId      String
+  project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  phaseId        String?
+  phase          Phase?          @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+  code           String
+  name           String
+  // Adopted working date; null until the operator reviews a candidate.
+  date           DateTime?       @db.Date
+  reviewStatus   MilestoneReview @default(NEEDS_REVIEW)
+  adoptedValueId String?
+  notes          String?
+  sortOrder      Int             @default(0)
+  updatedAt      DateTime        @updatedAt
+
+  values MilestoneSourceValue[]
+  links  ActivityMilestone[]
+
+  @@unique([projectId, phaseId, code])
+}
+
+// Candidate dates with provenance; discrepancies remain as separate rows.
+model MilestoneSourceValue {
+  id              String         @id @default(uuid())
+  milestoneId     String
+  milestone       Milestone      @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  sourceVersionId String?
+  sourceVersion   SourceVersion? @relation(fields: [sourceVersionId], references: [id], onDelete: SetNull)
+  sourceLabel     String
+  sourceDate      DateTime?      @db.Date
+  date            DateTime?      @db.Date
+  note            String?
+  createdAt       DateTime       @default(now())
+
+  @@index([milestoneId])
+}
+
+// ---------------------------------------------------------------------------
+// Plans (working plan and scenarios), revisions
+// ---------------------------------------------------------------------------
+
+enum PlanKind {
+  WORKING
+  SCENARIO
+}
+
+enum PlanStatus {
+  ACTIVE
+  PROMOTED
+  ARCHIVED
+}
+
+model Plan {
+  id                 String     @id @default(uuid())
+  projectId          String
+  project            Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind               PlanKind
+  status             PlanStatus @default(ACTIVE)
+  name               String
+  description        String?
+  // Optimistic concurrency token; every committed change increments it.
+  revision           Int        @default(1)
+  basedOnPlanId      String?
+  basedOnRevision    Int?
+  basedOnSnapshotId  String?
+  createdById        String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  calendars    Calendar[]
+  activities   Activity[]
+  links        ActivityLink[]
+  nodes        AllocationNode[]
+  entries      StaffingEntry[]
+  leadership   LeadershipAssignment[]
+  phaseWindows PhaseWindow[]
+  revisions    PlanRevision[]
+
+  @@index([projectId, kind])
+}
+
+model PlanRevision {
+  id         String   @id @default(uuid())
+  planId     String
+  plan       Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  revision   Int
+  kind       String
+  summary    String
+  actorId    String?
+  snapshotId String?
+  createdAt  DateTime @default(now())
+
+  @@unique([planId, revision])
+}
+
+// Calendar definition JSON is validated by src/domain/calendar.ts
+// (weekly pattern, effective-dated periods, dated exceptions, shift presets).
+model Calendar {
+  id         String   @id @default(uuid())
+  planId     String
+  plan       Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  key        String
+  name       String
+  timezone   String
+  isDefault  Boolean  @default(false)
+  definition Json
+  updatedAt  DateTime @updatedAt
+
+  @@unique([planId, key])
+}
+
+model PhaseWindow {
+  id      String    @id @default(uuid())
+  planId  String
+  plan    Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  phaseId String
+  start   DateTime? @db.Date
+  finish  DateTime? @db.Date
+  note    String?
+
+  @@unique([planId, phaseId])
+}
+
+// ---------------------------------------------------------------------------
+// Work plan
+// ---------------------------------------------------------------------------
+
+model Activity {
+  id            String    @id @default(uuid())
+  planId        String
+  plan          Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  projectId     String
+  key           String
+  code          String
+  name          String
+  phaseId       String?
+  areaId        String?
+  // null = Shared systems
+  systemId      String?
+  calendarKey   String?
+  plannedStart  DateTime  @db.Date
+  plannedFinish DateTime  @db.Date
+  // Optional cost code reference (for later budget tracking; no financial logic yet)
+  costCode      String?
+  notes         String?
+  sortOrder     Int       @default(0)
+  archivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  successors   ActivityLink[]      @relation("Pred")
+  predecessors ActivityLink[]      @relation("Succ")
+  milestones   ActivityMilestone[]
+
+  @@unique([planId, key])
+  @@index([planId])
+}
+
+// Finish-to-start links with working-day lag.
+model ActivityLink {
+  id            String   @id @default(uuid())
+  planId        String
+  plan          Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  predecessorId String
+  predecessor   Activity @relation("Pred", fields: [predecessorId], references: [id], onDelete: Cascade)
+  successorId   String
+  successor     Activity @relation("Succ", fields: [successorId], references: [id], onDelete: Cascade)
+  lagDays       Int      @default(0)
+
+  @@unique([predecessorId, successorId])
+}
+
+model ActivityMilestone {
+  id          String    @id @default(uuid())
+  activityId  String
+  activity    Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  milestoneId String
+  milestone   Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, milestoneId])
+}
+
+// ---------------------------------------------------------------------------
+// Workforce: one capacity tree per pool. The POOL root supplies capacity;
+// RESERVATION and CREW nodes subdivide their parent and never add people.
+// ---------------------------------------------------------------------------
+
+enum NodeKind {
+  POOL
+  RESERVATION
+  CREW
+}
+
+model AllocationNode {
+  id          String           @id @default(uuid())
+  planId      String
+  plan        Plan             @relation(fields: [planId], references: [id], onDelete: Cascade)
+  projectId   String
+  key         String
+  parentId    String?
+  parent      AllocationNode?  @relation("NodeTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children    AllocationNode[] @relation("NodeTree")
+  kind        NodeKind
+  name        String
+  role        String           @default("Installer")
+  phaseId     String?
+  areaId      String?
+  systemId    String?
+  activityKey String?
+  calendarKey String?
+  notes       String?
+  sortOrder   Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  entries StaffingEntry[]
+
+  @@unique([planId, key])
+  @@index([planId])
+}
+
+enum EntryKind {
+  WEEK
+  DAY
+  BLOCK
+}
+
+// WEEK: headcount applied to open days of the week starting `date` (Monday).
+// DAY: whole-day override on `date` (optional hours).
+// BLOCK: explicit timed block starting on `date` at startTime; endTime <=
+//        startTime means it ends the next day (overnight).
+model StaffingEntry {
+  id        String         @id @default(uuid())
+  planId    String
+  plan      Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  nodeId    String
+  node      AllocationNode @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  kind      EntryKind
+  date      DateTime       @db.Date
+  slot      String         @default("")
+  headcount Int
+  hours     Decimal?       @db.Decimal(6, 2)
+  startTime String?
+  endTime   String?
+  label     String?
+
+  @@unique([nodeId, kind, date, slot])
+  @@index([planId])
+}
+
+enum OnsiteMode {
+  PROJECT_CALENDAR
+  WEEKDAYS
+}
+
+// Leadership is separate from installer pools. personId null = explicit TBD.
+model LeadershipAssignment {
+  id                     String     @id @default(uuid())
+  planId                 String
+  plan                   Plan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  projectId              String
+  key                    String
+  personId               String?
+  person                 Person?    @relation(fields: [personId], references: [id], onDelete: Restrict)
+  placeholderName        String     @default("TBD")
+  role                   String
+  responsibilitySystemIds String[]  @default([])
+  responsibilityPhaseIds String[]   @default([])
+  responsibilityNote     String?
+  startDate              DateTime?  @db.Date
+  endDate                DateTime?  @db.Date
+  onsiteMode             OnsiteMode @default(PROJECT_CALENDAR)
+  onsiteWeekdays         Int[]      @default([1, 2, 3, 4, 5])
+  onsiteHours            Decimal?   @db.Decimal(5, 2)
+  onsiteStart            String?
+  offsiteHoursPerWeek    Decimal?   @db.Decimal(6, 2)
+  // [{ date, kind: 'offsite'|'onsite'|'hours', hours?, start? }]
+  dayOverrides           Json       @default("[]")
+  notes                  String?
+  sortOrder              Int        @default(0)
+
+  @@unique([planId, key])
+}
+
+// ---------------------------------------------------------------------------
+// Progress (project-scoped by activity lineage key)
+// ---------------------------------------------------------------------------
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETE
+  ON_HOLD
+}
+
+model ActivityProgress {
+  id              String         @id @default(uuid())
+  projectId       String
+  project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  activityKey     String
+  status          ProgressStatus @default(NOT_STARTED)
+  actualStart     DateTime?      @db.Date
+  actualFinish    DateTime?      @db.Date
+  percentComplete Decimal?       @db.Decimal(5, 2)
+  holdReason      String?
+  holdReviewDate  DateTime?      @db.Date
+  version         Int            @default(1)
+  updatedById     String?
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([projectId, activityKey])
+}
+
+model ProgressEvent {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  activityKey String
+  kind        String
+  before      Json?
+  after       Json?
+  note        String?
+  actorId     String?
+  createdAt   DateTime @default(now())
+
+  @@index([projectId, activityKey])
+}
+
+// ---------------------------------------------------------------------------
+// Source schedules and imports
+// ---------------------------------------------------------------------------
+
+enum LineageKind {
+  PDF_SCHEDULE
+  SPREADSHEET
+  MANUAL_TABLE
+}
+
+model SourceLineage {
+  id          String      @id @default(uuid())
+  projectId   String
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  kind        LineageKind
+  description String?
+  createdAt   DateTime    @default(now())
+
+  versions SourceVersion[]
+  imports  ImportSession[]
+
+  @@unique([projectId, name])
+}
+
+model SourceVersion {
+  id              String         @id @default(uuid())
+  lineageId       String
+  lineage         SourceLineage  @relation(fields: [lineageId], references: [id], onDelete: Cascade)
+  projectId       String
+  versionNumber   Int
+  label           String
+  sourceDate      DateTime?      @db.Date
+  dataDate        DateTime?      @db.Date
+  fileId          String?
+  sha256          String?
+  importSessionId String?        @unique
+  comparedToId    String?
+  summary         Json           @default("{}")
+  committedById   String?
+  committedAt     DateTime       @default(now())
+
+  records         SourceRecord[]
+  milestoneValues MilestoneSourceValue[]
+
+  @@unique([lineageId, versionNumber])
+}
+
+model SourceRecord {
+  id                String        @id @default(uuid())
+  versionId         String
+  version           SourceVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  externalId        String
+  kind              String        @default("ACTIVITY")
+  name              String
+  wbsPath           String[]      @default([])
+  pageNumber        Int?
+  start             DateTime?     @db.Date
+  finish            DateTime?     @db.Date
+  originalDuration  Decimal?      @db.Decimal(8, 2)
+  remainingDuration Decimal?      @db.Decimal(8, 2)
+  startActual       Boolean       @default(false)
+  finishActual      Boolean       @default(false)
+  startConstrained  Boolean       @default(false)
+  finishConstrained Boolean       @default(false)
+  original          Json
+  reviewed          Json
+  inScope           Boolean       @default(false)
+  // false: present in the source but not selected during review (kept so later versions compare source-wide)
+  included          Boolean       @default(true)
+  phaseId           String?
+  areaId            String?
+  systemId          String?
+  // ADDED | UNCHANGED | CHANGED | RENAMED | REMOVED relative to comparedTo
+  changeKind        String        @default("ADDED")
+  changes           Json          @default("[]")
+
+  @@unique([versionId, externalId])
+}
+
+model ActivitySourceLink {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  activityKey String
+  lineageId   String
+  externalId  String
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@unique([activityKey, lineageId, externalId])
+  @@index([projectId, lineageId, externalId])
+}
+
+enum ImportStatus {
+  UPLOADED
+  EXTRACTING
+  EXTRACTED
+  NEEDS_REVIEW
+  VALIDATED
+  COMMITTED
+  CANCELED
+  FAILED
+}
+
+enum ImportFormat {
+  PDF
+  CSV
+  XLSX
+}
+
+model ImportSession {
+  id                String        @id @default(uuid())
+  projectId         String
+  project           Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  lineageId         String
+  lineage           SourceLineage @relation(fields: [lineageId], references: [id], onDelete: Cascade)
+  fileId            String
+  format            ImportFormat
+  status            ImportStatus  @default(UPLOADED)
+  fileSha256        String
+  label             String
+  sourceDate        DateTime?     @db.Date
+  columnMapping     Json?
+  extractionMeta    Json          @default("{}")
+  issues            Json          @default("[]")
+  compareToVersionId String?
+  identicalToVersionId String?
+  jobId             String?
+  revision          Int           @default(1)
+  createdById       String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  rows ImportRow[]
+
+  @@index([projectId, status])
+}
+
+model ImportRow {
+  id           String        @id @default(uuid())
+  sessionId    String
+  session      ImportSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  rowIndex     Int
+  pageNumber   Int?
+  kind         String
+  externalId   String?
+  wbsPath      String[]      @default([])
+  original     Json
+  reviewed     Json
+  include      Boolean       @default(false)
+  phaseId      String?
+  areaId       String?
+  systemId     String?
+  issues       Json          @default("[]")
+  // ADDED | UNCHANGED | CHANGED | RENAMED | DUPLICATE_ID | UNCERTAIN | NO_ID
+  matchStatus  String        @default("ADDED")
+  matchDetail  Json          @default("{}")
+
+  @@unique([sessionId, rowIndex])
+  @@index([sessionId, externalId])
+}
+
+// ---------------------------------------------------------------------------
+// Snapshots, presets, reports, submissions
+// ---------------------------------------------------------------------------
+
+enum SnapshotKind {
+  BASELINE
+  REPORT
+  REVISION_BACKUP
+}
+
+// Immutable: a database trigger rejects changes to data/dataHash.
+model PlanSnapshot {
+  id           String       @id @default(uuid())
+  projectId    String
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  planId       String
+  planKind     PlanKind
+  planName     String
+  planRevision Int
+  kind         SnapshotKind
+  name         String
+  description  String?
+  data         Json
+  dataHash     String
+  createdById  String?
+  createdAt    DateTime     @default(now())
+
+  reports     GeneratedReport[]
+  submissions Submission[]
+
+  @@index([projectId, kind])
+}
+
+model ExportPreset {
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId   String?
+  name        String
+  settings    Json
+  revision    Int       @default(1)
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, projectId, name])
+}
+
+enum ReportFormat {
+  PDF
+  XLSX
+}
+
+enum ReportStatus {
+  QUEUED
+  RENDERING
+  READY
+  FAILED
+}
+
+model GeneratedReport {
+  id           String       @id @default(uuid())
+  projectId    String
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  snapshotId   String
+  snapshot     PlanSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+  presetId     String?
+  presetName   String?
+  title        String
+  format       ReportFormat
+  settings     Json
+  status       ReportStatus @default(QUEUED)
+  fileId       String?      @unique
+  sizeBytes    Int?
+  sha256       String?
+  datasetHash  String?
+  error        String?
+  jobId        String?
+  authorId     String?
+  authorName   String
+  exploratory  Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  readyAt      DateTime?
+
+  submissionId String?
+  submission   Submission?  @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+
+  @@index([projectId, createdAt])
+}
+
+model Submission {
+  id                 String       @id @default(uuid())
+  projectId          String
+  project            Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  snapshotId         String
+  snapshot           PlanSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+  sequence           Int
+  title              String
+  issueDate          DateTime     @db.Date
+  recipientLabel     String
+  reference          String?
+  acknowledgedIssues Json         @default("[]")
+  recordedById       String?
+  recordedByName     String
+  createdAt          DateTime     @default(now())
+
+  reports GeneratedReport[]
+
+  @@unique([projectId, sequence])
+}
+
+// ---------------------------------------------------------------------------
+// Files, documents, jobs, division availability, audit, dev mail outbox
+// ---------------------------------------------------------------------------
+
+model StoredFile {
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId   String?
+  kind        String
+  storageKey  String    @unique
+  filename    String
+  contentType String
+  sizeBytes   Int
+  sha256      String
+  immutable   Boolean   @default(false)
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  @@index([projectId])
+}
+
+model ProjectDocument {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fileId    String
+  title     String
+  category  String   @default("OTHER")
+  notes     String?
+  createdById String?
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+model BackgroundJob {
+  id             String    @id @default(uuid())
+  workspaceId    String
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId      String?
+  kind           String
+  status         JobStatus @default(QUEUED)
+  progress       Int       @default(0)
+  message        String?
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(3)
+  idempotencyKey String    @unique
+  payload        Json
+  result         Json?
+  error          String?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  @@index([projectId, kind])
+}
+
+// Optional entered availability by role; absent = "availability not set".
+model AvailabilityLimit {
+  id           String    @id @default(uuid())
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  role         String
+  startDate    DateTime  @db.Date
+  endDate      DateTime  @db.Date
+  maxHeadcount Int
+  note         String?
+  createdAt    DateTime  @default(now())
+}
+
+model AuditEvent {
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId   String?
+  planId      String?
+  actorId     String?
+  actorName   String?
+  action      String
+  entityType  String
+  entityId    String?
+  summary     String
+  before      Json?
+  after       Json?
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([projectId, createdAt])
+}
+
+// Development-only mail transport target; production uses SMTP.
+model MailOutbox {
+  id        String   @id @default(uuid())
+  toAddress String
+  subject   String
+  text      String
+  html      String?
+  kind      String
+  createdAt DateTime @default(now())
+}
