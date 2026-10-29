@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
-import { auth } from "@/server/auth";
+import { getAuth } from "@/server/auth";
 import { prisma } from "@/server/db";
 
 /**
@@ -12,7 +12,7 @@ async function main() {
   if (process.env.DATABASE_URL !== process.env.TEST_DATABASE_URL) throw new Error("e2e-users only runs against TEST_DATABASE_URL");
   const ws = await prisma.workspace.findFirstOrThrow({ orderBy: { createdAt: "asc" } });
   const project = await prisma.project.findFirstOrThrow({ where: { workspaceId: ws.id, code: "CMH139" } });
-  const ctx = await auth.$context;
+  const ctx = await getAuth().$context;
   const users = [
     { email: "e2e.admin@example.com", name: "E2E Administrator", password: process.env.E2E_ADMIN_PASSWORD!, role: "ADMINISTRATOR" as const, grant: null },
     { email: "e2e.viewer@example.com", name: "E2E Viewer", password: process.env.E2E_VIEWER_PASSWORD!, role: "MEMBER" as const, grant: "INTERNAL_VIEWER" as const },

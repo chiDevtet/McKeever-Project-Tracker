@@ -1,0 +1,16 @@
+# HTTPS reverse proxy. Caddy obtains and renews certificates automatically
+# for APP_DOMAIN (DNS must point at the VPS). Set APP_DOMAIN=":80" only for a
+# local trial without TLS.
+{$APP_DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size 70MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	reverse_proxy web:3000 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+}

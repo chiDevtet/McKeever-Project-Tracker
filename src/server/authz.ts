@@ -1,5 +1,5 @@
 import type { ProjectRole } from "@/generated/prisma/client";
-import { auth } from "@/server/auth";
+import { getAuth } from "@/server/auth";
 import { prisma } from "@/server/db";
 import { forbidden, notFound, unauthenticated } from "@/server/errors";
 
@@ -41,7 +41,7 @@ export async function viewerForUser(userId: string): Promise<Viewer | null> {
 }
 
 export async function viewerFromHeaders(headers: Headers): Promise<Viewer | null> {
-  const session = await auth.api.getSession({ headers });
+  const session = await getAuth().api.getSession({ headers });
   if (!session) return null;
   return viewerForUser(session.user.id);
 }

@@ -13,6 +13,21 @@ function create(): PrismaClient {
   return new PrismaClient({ adapter });
 }
 
-/** Shared Prisma client (one pool per process). */
-export const prisma: PrismaClient = globalForPrisma.__fieldopsPrisma ?? create();
-if (process.env.NODE_ENV !== "production") globalForPrisma.__fieldopsPrisma = prisma;
+function client(): PrismaClient {
+  globalForPrisma.__fieldopsPrisma ??= create();
+  return globalForPrisma.__fieldopsPrisma;
+}
+
+/**
+ * Shared Prisma client (one pool per process), created on first use so that
+ * importing server modules (for example during `next build`) needs no
+ * database configuration.
+ */
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    const c = client();
+    const value = Reflect.get(c, prop, c);
+    return typeof value === "function" ? value.bind(c) : value;
+  },
+  has: (_target, prop) => Reflect.has(client(), prop),
+});

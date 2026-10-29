@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { ProjectRole, WorkspaceRole } from "@/generated/prisma/client";
 import { audit } from "@/server/audit";
-import { auth } from "@/server/auth";
+import { getAuth } from "@/server/auth";
 import { assertProjectAccess, requireAdmin, type Viewer } from "@/server/authz";
 import { prisma } from "@/server/db";
 import { env } from "@/server/env";
@@ -95,7 +95,7 @@ export async function acceptInvitation(raw: z.input<typeof acceptInput>) {
   if (await prisma.user.findUnique({ where: { email: inv.email } })) throw badRequest("An account already exists for this email. Sign in or reset your password.");
   // Better Auth's own hasher; the user/account rows are written in the same
   // transaction as the workspace grants so a failure leaves no orphan login.
-  const passwordHash = await (await auth.$context).password.hash(input.password);
+  const passwordHash = await (await getAuth().$context).password.hash(input.password);
   const grants = z.array(projectGrant).parse(inv.projectGrants);
   await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({ data: { id: randomUUID(), email: inv.email, name: input.name, emailVerified: true } });
