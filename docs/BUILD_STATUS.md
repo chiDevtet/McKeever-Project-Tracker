@@ -25,16 +25,22 @@ Stages (all are inside the first release):
 
 ## Completed stages
 
-_None yet._
+- **Stage 1** — scaffold, pinned dependencies, Prisma schema and migrations, Better Auth (invite-only, CLI bootstrap, password reset, dev outbox), CMH139 seed, weekly capacity grid, shared labor engine.
+- **Stage 2** — activities, timeline, finish-to-start links with lag and cycle prevention, nested allocations, dedicated crews, calendars and exceptions, move/calendar previews, planning issues.
+- **Stage 3** — report dataset, Playwright PDF and ExcelJS workbook from immutable snapshots, presets, submissions with issue acknowledgment.
+- **Stage 4** — queued PDF/CSV/XLSX extraction, review grid beside rendered page previews, idempotent commit, source-wide revision comparison, ambiguity review, selected atomic apply.
+- **Stage 5** (in progress) — done: progress validation and history, split remaining work, baselines, scenarios, compare, promote, restore, Plans & history page, People (personnel, users, invitations, grants), Settings (branding, roles, availability), dev outbox. Remaining: separate illustrative demo dataset.
 
 ## Checks run
 
-_None yet._
+- `pnpm typecheck`, `pnpm lint` (0 errors), `pnpm test` (unit, 38 passing).
+- `pnpm test:integration` against a disposable PostgreSQL database: imports (7) and progress/scenarios (8) passing.
+- Browser walkthroughs with Playwright Chromium against `pnpm dev` + `pnpm worker`: grid edits and reload, report PDF/XLSX generation, PDF import of the supplied fixture (P1ER.1140, P1RP.1210, P1CX.2000 match), identical re-import, revised CSV import and apply, progress, scenario promotion, invitation to a read-only viewer, revocation.
 
 ## Blockers
 
-_None._
+_None._ Cloud deployment (VPS, Neon, R2, SMTP) is configuration only and is not performed from this repository.
 
 ## Next concrete action
 
-Scaffold the repository and install pinned dependencies.
+Stage 5: separate demo dataset script. Stage 6: remaining integration tests (persistence/stale/atomic, access isolation, reports and frozen submissions), Playwright e2e suite, Docker images and Compose, backup/restore scripts and drill, README and decision log, acceptance evidence A01–A26.
