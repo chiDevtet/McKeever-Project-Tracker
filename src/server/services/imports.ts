@@ -8,7 +8,7 @@ import { audit } from "@/server/audit";
 import { assertPlanAccess, assertProjectAccess, type Viewer } from "@/server/authz";
 import { prisma, type Tx } from "@/server/db";
 import { badRequest, notFound } from "@/server/errors";
-import { columnMappingSchema, mapSheetRows, readSheet, renderPdfPages, runPdfExtractor, type ExtractedSchedule } from "@/server/imports/extraction";
+import { columnMappingSchema, readSheet, type ExtractedSchedule } from "@/server/imports/extraction";
 import { enqueueJob, QUEUES } from "@/server/jobs/queue";
 import { sha256, storeFile } from "@/server/services/files";
 import { mutatePlan } from "@/server/plan-store";
@@ -216,33 +216,7 @@ function summarize(statuses: string[], removed: number) {
   return c;
 }
 
-export async function extractSessionRows(sessionId: string, onProgress?: (done: number, total: number) => void) {
-  const s = await prisma.importSession.findUniqueOrThrow({ where: { id: sessionId } });
-  const file = await prisma.storedFile.findUniqueOrThrow({ where: { id: s.fileId } });
-  const bytes = await storage().get(file.storageKey);
-  if (s.format === "PDF") return runPdfExtractor(bytes, onProgress);
-  const mapping = columnMappingSchema.parse(s.columnMapping);
-  const { rows } = await readSheet(bytes, s.format, mapping.sheet);
-  return mapSheetRows(rows, mapping);
-}
-
 export const previewKey = (fileId: string, page: number) => `previews/${fileId}/page-${page}.png`;
-
-/** Render page previews for a PDF session into private storage (idempotent per source file). */
-export async function renderSessionPreviews(sessionId: string): Promise<PreviewResult> {
-  const s = await prisma.importSession.findUniqueOrThrow({ where: { id: sessionId } });
-  if (s.format !== "PDF") return null;
-  const file = await prisma.storedFile.findUniqueOrThrow({ where: { id: s.fileId } });
-  const store = storage();
-  try {
-    return await renderPdfPages(await store.get(file.storageKey), async (n, png) => {
-      const key = previewKey(file.id, n);
-      if (!(await store.exists(key))) await store.put(key, png, "image/png");
-    });
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) };
-  }
-}
 
 /** Read one rendered page preview after checking project access. */
 export async function readPreviewPage(viewer: Viewer, raw: { sessionId: string; page: number }) {
