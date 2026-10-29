@@ -124,7 +124,17 @@ function labor(l: { peak: number; hours: number } | null, hours: boolean) {
   return hours ? `${l.peak} peak · ${fmt(l.hours)} h` : `${l.peak} peak`;
 }
 
-/** Split rows into page-sized chunks; rows with long text count as two lines. */
+/** Printable content width of a page in CSS pixels. */
+const contentWidthPx = (o: Orientation) => (PAGE[o].w - 1.0) * DPI;
+
+/** Estimated height of wrapped text cells, in pagination rows (9.5pt text, ~6.2px per character). */
+function wrapRows(texts: (string | null | undefined)[], widthPx: number): number {
+  const charsPerLine = Math.max(8, Math.floor((widthPx - 8) / 6.2));
+  const lines = texts.reduce((n, t) => n + (t ? Math.ceil(t.length / charsPerLine) : 0), 0);
+  return Math.max(1, (lines * 15 + 6) / ROW_ESTIMATE_PX);
+}
+
+/** Split rows into page-sized chunks by estimated row weight. */
 function chunk<T>(rows: T[], capacity: number, weight: (r: T) => number = () => 1): T[][] {
   const out: T[][] = [];
   let cur: T[] = [];
@@ -216,7 +226,7 @@ function summaryPage(ds: ReportDataset, o: Orientation): PageContent {
           </>
         ) : null}
         <h2>Sources and basis</h2>
-        <table>
+        <table className="kv">
           <tbody>
             {id.sources.map((s) => (
               <tr key={s.label}>
@@ -316,7 +326,7 @@ function staffingTablePages(ds: ReportDataset, rowsPerPage: number): PageContent
   }));
 }
 
-function detailPages(ds: ReportDataset, rowsPerPage: number): PageContent[] {
+function detailPages(ds: ReportDataset, o: Orientation, rowsPerPage: number): PageContent[] {
   const hours = ds.settings.contents.hours;
   const d = ds.settings.detail;
   if (d === "PROJECT_SUMMARY") {
@@ -432,7 +442,8 @@ function detailPages(ds: ReportDataset, rowsPerPage: number): PageContent[] {
     }));
   }
   const withNotes = ds.settings.contents.notes;
-  return chunk(ds.activities, rowsPerPage, (a) => (a.name.length > 46 || (withNotes && a.notes) ? 2 : 1)).map((rows, i) => ({
+  const nameWidth = contentWidthPx(o) * 0.25;
+  return chunk(ds.activities, rowsPerPage - 2, (a) => wrapRows([`${a.name}${a.source ? ` · src ${a.source}` : ""}`, withNotes ? a.notes : null], nameWidth)).map((rows, i) => ({
     key: `acts-${i}`,
     body: (
       <>
@@ -767,7 +778,7 @@ export function buildPages(ds: ReportDataset): { orientation: Orientation; pages
   const pages: PageContent[] = [summaryPage(ds, o)];
   if (p === "CHART" || p === "COMBINED") pages.push(...chartPages(ds, o));
   if (p === "TABLE" || p === "COMBINED") pages.push(...staffingTablePages(ds, rowsPerPage));
-  pages.push(...detailPages(ds, rowsPerPage));
+  pages.push(...detailPages(ds, o, rowsPerPage));
   if (p === "TIMELINE" || p === "COMBINED") pages.push(...timelinePages(ds, o, Math.floor((usable - 70) / 16)));
   pages.push(...rosterPages(ds, rowsPerPage));
   pages.push(basisPage(ds));

@@ -354,7 +354,11 @@ export function buildReportDataset(data: PlanData, settings: ReportSettings, ctx
     filterDescription: filterParts.length ? filterParts.join(" · ") : "All project labor",
     isAllocationView: measures.isAllocationView,
     allocationEmpty: measures.isAllocationView && measures.installerIntervals.length === 0,
-    allocationNote: measures.isAllocationView ? `Installer figures are an allocation view (${filterParts.join(" · ")}): labor explicitly allocated to the filter. They do not represent all project labor.` : null,
+    allocationNote: !measures.isAllocationView
+      ? null
+      : measures.installerIntervals.length === 0
+        ? `Installer labor is not allocated to ${filterParts.join(" · ")}. This means no allocation has been entered, not zero demand; project labor is reported without this filter.`
+        : `Installer figures are an allocation view (${filterParts.join(" · ")}): labor explicitly allocated to the filter. They do not represent all project labor.`,
     weeks: measures.weeks.map((w) => ({ ...w, week: w.start })),
     totals: {
       peakTotal: measures.totals.peakTotal,
