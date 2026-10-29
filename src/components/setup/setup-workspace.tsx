@@ -479,7 +479,7 @@ function Contacts({ setup, canEdit, projectId }: { setup: Setup; canEdit: boolea
         {setup.contacts.map((c) => (
           <li key={c.id} className="flex flex-wrap items-center gap-2 rounded border px-2 py-1">
             <span className="font-medium">{c.name}</span>
-            <span className="text-xs text-muted-foreground">{[c.title, c.organization, c.email, c.phone].filter(Boolean).join(" · ")}</span>
+            <span className="min-w-0 text-xs text-muted-foreground [overflow-wrap:anywhere]">{[c.title, c.organization, c.email, c.phone].filter(Boolean).join(" · ")}</span>
             {canEdit ? (
               <button type="button" className="ml-auto" aria-label={`Remove ${c.name}`} disabled={busy} onClick={() => run(() => rpc("setup.deleteContact", { projectId, id: c.id }))}>
                 <Trash2 className="size-3.5" />
@@ -524,14 +524,14 @@ function Documents({ setup, canEdit, projectId }: { setup: Setup; canEdit: boole
         {setup.documents.map((d) => (
           <li key={d.id} className="flex flex-wrap items-center gap-2 rounded border px-2 py-1">
             <FileText className="size-4 text-muted-foreground" aria-hidden />
-            <a className="font-medium underline-offset-2 hover:underline" href={`/api/files/${d.fileId}`}>
+            <a className="min-w-0 font-medium [overflow-wrap:anywhere] underline-offset-2 hover:underline" href={`/api/files/${d.fileId}`}>
               {d.title}
             </a>
             <Badge variant="outline">{d.category}</Badge>
-            <span className="text-xs text-muted-foreground">
+            <span className="min-w-0 text-xs text-muted-foreground [overflow-wrap:anywhere]">
               {d.filename} · {(d.sizeBytes / 1024 / 1024).toFixed(1)} MB
             </span>
-            {d.notes ? <span className="w-full text-xs text-muted-foreground">{d.notes}</span> : null}
+            {d.notes ? <span className="w-full text-xs text-muted-foreground [overflow-wrap:anywhere]">{d.notes}</span> : null}
           </li>
         ))}
         {setup.documents.length === 0 ? <li className="text-muted-foreground">No documents.</li> : null}

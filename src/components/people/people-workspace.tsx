@@ -110,7 +110,7 @@ export function PeopleWorkspace({ people, users, canManagePeople, viewerId }: { 
               <li key={u.userId} className="space-y-1 py-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">{u.name}</span>
-                  <span className="text-xs text-muted-foreground">{u.email}</span>
+                  <span className="min-w-0 text-xs text-muted-foreground [overflow-wrap:anywhere]">{u.email}</span>
                   <Badge variant={u.role === "ADMINISTRATOR" ? "default" : "outline"}>{u.role === "ADMINISTRATOR" ? "Administrator" : "Member"}</Badge>
                   {u.disabled ? <Badge variant="destructive">Disabled</Badge> : null}
                   {u.userId !== viewerId ? (
@@ -173,7 +173,7 @@ function Grants({ user, projects, refresh }: { user: Users["users"][number]; pro
     <div className="flex flex-wrap items-center gap-1 text-xs">
       {user.memberships.length === 0 ? <span className="text-muted-foreground">No project access.</span> : null}
       {user.memberships.map((m) => (
-        <span key={m.projectId} className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5">
+        <span key={m.projectId} className="inline-flex max-w-full flex-wrap items-center gap-1 rounded border px-1.5 py-0.5">
           {name.get(m.projectId)}
           <select aria-label={`Role on ${name.get(m.projectId)}`} className="h-6 rounded border bg-background text-[11px]" value={m.role} onChange={(e) => void call(rpc("users.grant", { projectId: m.projectId, userId: user.userId, role: e.target.value as ProjectRole }), "Access updated", refresh)}>
             {(Object.keys(ROLE_LABEL) as ProjectRole[]).map((r) => (
@@ -188,8 +188,8 @@ function Grants({ user, projects, refresh }: { user: Users["users"][number]; pro
         </span>
       ))}
       {available.length ? (
-        <span className="inline-flex items-center gap-1">
-          <select aria-label="Project to grant" className={selectCls} value={add.projectId} onChange={(e) => setAdd({ ...add, projectId: e.target.value })}>
+        <span className="flex max-w-full flex-wrap items-center gap-1">
+          <select aria-label="Project to grant" className={`${selectCls} max-w-full`} value={add.projectId} onChange={(e) => setAdd({ ...add, projectId: e.target.value })}>
             <option value="">Grant project…</option>
             {available.map((p) => (
               <option key={p.id} value={p.id}>
