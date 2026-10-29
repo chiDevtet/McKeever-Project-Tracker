@@ -25,22 +25,30 @@ Stages (all are inside the first release):
 
 ## Completed stages
 
+All six stages of the first release are complete.
+
 - **Stage 1** — scaffold, pinned dependencies, Prisma schema and migrations, Better Auth (invite-only, CLI bootstrap, password reset, dev outbox), CMH139 seed, weekly capacity grid, shared labor engine.
-- **Stage 2** — activities, timeline, finish-to-start links with lag and cycle prevention, nested allocations, dedicated crews, calendars and exceptions, move/calendar previews, planning issues.
+- **Stage 2** — activities, timeline, finish-to-start links with lag and cycle prevention, nested allocations, dedicated crews, calendars and exceptions, move and calendar previews, planning issues.
 - **Stage 3** — report dataset, Playwright PDF and ExcelJS workbook from immutable snapshots, presets, submissions with issue acknowledgment.
 - **Stage 4** — queued PDF/CSV/XLSX extraction, review grid beside rendered page previews, idempotent commit, source-wide revision comparison, ambiguity review, selected atomic apply.
-- **Stage 5** (in progress) — done: progress validation and history, split remaining work, baselines, scenarios, compare, promote, restore, Plans & history page, People (personnel, users, invitations, grants), Settings (branding, roles, availability), dev outbox. Remaining: separate illustrative demo dataset.
+- **Stage 5** — progress validation and history, split remaining work, baselines, scenarios, compare, promote, restore, Plans & history, People (personnel, users, invitations, grants), Settings (branding, roles, availability), dev outbox, separate illustrative demo dataset, optional activity cost codes.
+- **Stage 6** — integration and browser suites, acceptance evidence A01–A26 (all verified), responsive checks, access isolation, Docker images and Compose with Caddy (built and run locally), backup and restore with a tested drill, README, decision log, implementation checklist.
 
-## Checks run
+## Checks run (latest)
 
-- `pnpm typecheck`, `pnpm lint` (0 errors), `pnpm test` (unit, 38 passing).
-- `pnpm test:integration` against a disposable PostgreSQL database: imports (7) and progress/scenarios (8) passing.
-- Browser walkthroughs with Playwright Chromium against `pnpm dev` + `pnpm worker`: grid edits and reload, report PDF/XLSX generation, PDF import of the supplied fixture (P1ER.1140, P1RP.1210, P1CX.2000 match), identical re-import, revised CSV import and apply, progress, scenario promotion, invitation to a read-only viewer, revocation.
+- `pnpm typecheck`, `pnpm lint` (0 errors, 0 warnings), `pnpm build` (also with no `.env`).
+- `pnpm test`: 5 files, 39 tests passed.
+- `pnpm test:integration` (PostgreSQL 16, disposable database): 5 files, 30 tests passed.
+- `pnpm test:e2e` (production build + worker): 6 files, 11 tests passed.
+- Docker: `web` and `worker` images built; Compose stack (local-db profile) healthy; sign-in, PDF/XLSX generation, and fixture import verified through Caddy.
+- Backup/restore drill with `backup:verify --compare`: OK; corruption detected when introduced.
+
+Details: [`ACCEPTANCE_EVIDENCE.md`](ACCEPTANCE_EVIDENCE.md).
 
 ## Blockers
 
-_None._ Cloud deployment (VPS, Neon, R2, SMTP) is configuration only and is not performed from this repository.
+_None._ Cloud deployment (VPS, DNS, Neon, R2, SMTP) is configuration only and was not performed from this repository.
 
 ## Next concrete action
 
-Stage 5: separate demo dataset script. Stage 6: remaining integration tests (persistence/stale/atomic, access isolation, reports and frozen submissions), Playwright e2e suite, Docker images and Compose, backup/restore scripts and drill, README and decision log, acceptance evidence A01–A26.
+Deployment by the operator: provision the VPS, Neon database, private R2 bucket, and SMTP; fill in `.env.production`; run `docker compose --env-file .env.production up -d --build`; seed CMH139 and bootstrap the first administrator (see README › Deployment). Then enter real installer counts, leadership dates, and the foreman name, and import the GC schedule.
