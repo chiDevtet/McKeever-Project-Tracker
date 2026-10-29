@@ -17,6 +17,7 @@ export const unauthenticated = () => new AppError("unauthenticated", "Sign in to
 export const forbidden = (message = "You do not have access to this.") => new AppError("forbidden", message, 403);
 export const notFound = (what = "Record") => new AppError("not_found", `${what} not found.`, 404);
 export const badRequest = (message: string, details?: unknown) => new AppError("bad_request", message, 400, details);
+export const conflict = (message: string, details?: unknown) => new AppError("conflict", message, 409, details);
 
 export class StaleRevisionError extends AppError {
   constructor(readonly currentRevision: number, expected: number) {

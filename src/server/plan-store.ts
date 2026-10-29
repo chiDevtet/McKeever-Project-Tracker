@@ -402,7 +402,9 @@ export async function mutatePlan(viewer: Viewer, planId: string, expectedRevisio
           if (!current) throw notFound("Plan");
           throw new StaleRevisionError(current.revision, expectedRevision);
         }
-        const before = await loadPlanData(tx, planId);
+        const loaded = await loadPlanData(tx, planId);
+        // The row's revision was already incremented above; `before` describes the prior revision.
+        const before = { ...loaded, plan: { ...loaded.plan, revision: expectedRevision } };
         const after = typeof ops === "function" ? ops(structuredClone(before)) : applyOps(before, ops);
         after.plan = { ...before.plan };
         const issues = validatePlan(after, before);

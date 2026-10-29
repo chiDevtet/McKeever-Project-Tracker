@@ -91,6 +91,8 @@ export function describeOps(ops: PlanOp[]): string {
         return "Updated activity";
       case "setActivityDates":
         return `Activity dates ${formatDate(op.start)}–${formatDate(op.finish)}`;
+      case "splitActivity":
+        return `Split remaining work "${op.name}" from ${formatDate(op.remainingStart)}`;
       case "addLink":
         return "Added dependency";
       case "updateLink":

@@ -12,7 +12,7 @@ import { addDays, eachDay, isISODate, isoWeekday, startOfWeek, type ISODate } fr
 import { buildTree, checkCapacity, descendants, overlappingBlocksOnRow, validateStructure, type CapacityViolation } from "./capacity";
 import type { ActivityInput, EntryInput, LeadershipInput, NodeInput, PlanData } from "./plan";
 import { entryId, entrySlot } from "./plan";
-import { findCycle } from "./schedule";
+import { activityCalendar, findCycle } from "./schedule";
 import { expandAllNodes, nodeCalendarKey, resolverFor } from "./staffing";
 import { isTimeOfDay, isValidTimeZone } from "./tz";
 
@@ -125,6 +125,13 @@ export const planOpSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("addActivity"), activity: activitySchema }),
   z.object({ type: z.literal("updateActivity"), key, patch: activitySchema.omit({ key: true }).partial() }),
   z.object({ type: z.literal("setActivityDates"), key, start: isoDate, finish: isoDate }),
+  /**
+   * Split the unfinished remainder of an activity into a new activity starting
+   * at remainingStart. The original keeps its start (and any recorded actuals)
+   * and finishes on the last working day before the remainder; successors and
+   * milestone links follow the remainder. Reservations move only if selected.
+   */
+  z.object({ type: z.literal("splitActivity"), key, newKey: key, remainingStart: isoDate, remainingFinish: isoDate, name: text(300).min(1), moveReservations: z.array(key).max(500) }),
   z.object({ type: z.literal("addLink"), predecessorKey: key, successorKey: key, lagDays: z.number().int().min(0).max(365) }),
   z.object({ type: z.literal("updateLink"), predecessorKey: key, successorKey: key, lagDays: z.number().int().min(0).max(365) }),
   z.object({ type: z.literal("removeLink"), predecessorKey: key, successorKey: key }),
@@ -346,6 +353,25 @@ export function applyOp(data: PlanData, op: PlanOp): void {
       const a = requireActivity(data, op.key);
       a.plannedStart = op.start;
       a.plannedFinish = op.finish;
+      return;
+    }
+    case "splitActivity": {
+      const a = requireActivity(data, op.key);
+      if (data.activities.some((x) => x.key === op.newKey)) throw new PlanOpError("An activity with this key already exists");
+      if (op.remainingStart <= a.plannedStart) throw new PlanOpError("The remaining work must start after the activity's start");
+      if (op.remainingFinish < op.remainingStart) throw new PlanOpError("The remaining work cannot finish before it starts");
+      const cal = activityCalendar(data, a);
+      let lastDone = addDays(op.remainingStart, -1);
+      while (lastDone > a.plannedStart && !cal.isWorkingDay(lastDone)) lastDone = addDays(lastDone, -1);
+      data.activities.push({ ...a, key: op.newKey, code: nextActivityCode(data), name: op.name, plannedStart: op.remainingStart, plannedFinish: op.remainingFinish, notes: `Remaining work split from ${a.code}`, sortOrder: a.sortOrder + 1 });
+      a.plannedFinish = lastDone;
+      for (const l of data.links) if (l.predecessorKey === a.key) l.predecessorKey = op.newKey;
+      for (const m of data.activityMilestones) if (m.activityKey === a.key) m.activityKey = op.newKey;
+      for (const nodeKey of op.moveReservations) {
+        const n = data.nodes.find((x) => x.key === nodeKey && x.activityKey === a.key);
+        if (!n) throw new PlanOpError("A selected reservation is not attached to this activity");
+        n.activityKey = op.newKey;
+      }
       return;
     }
     case "addLink": {

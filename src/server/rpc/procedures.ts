@@ -1,8 +1,10 @@
 import type { Viewer } from "@/server/authz";
 import * as division from "@/server/services/division";
+import * as history from "@/server/services/history";
 import * as imports from "@/server/services/imports";
 import * as people from "@/server/services/people";
 import * as plans from "@/server/services/plans";
+import * as progress from "@/server/services/progress";
 import * as projects from "@/server/services/projects";
 import * as reports from "@/server/services/reports";
 import * as structure from "@/server/services/structure";
@@ -19,6 +21,14 @@ export const procedures = {
   "plans.applyOps": (v: Viewer, input: Parameters<typeof plans.applyPlanOps>[1]) => plans.applyPlanOps(v, input),
   "plans.view": (v: Viewer, input: { projectId: string; planId?: string | null }) => plans.getPlanView(v, input.projectId, input.planId),
   "plans.revisions": (v: Viewer, input: { planId: string }) => plans.listRevisions(v, input.planId),
+  "progress.update": (v: Viewer, input: Parameters<typeof progress.updateProgress>[1]) => progress.updateProgress(v, input),
+  "history.get": (v: Viewer, input: { projectId: string }) => history.getHistory(v, input.projectId),
+  "history.createBaseline": (v: Viewer, input: Parameters<typeof history.createBaseline>[1]) => history.createBaseline(v, input),
+  "history.createScenario": (v: Viewer, input: Parameters<typeof history.createScenario>[1]) => history.createScenario(v, input),
+  "history.compare": (v: Viewer, input: Parameters<typeof history.comparePlan>[1]) => history.comparePlan(v, input),
+  "history.promote": (v: Viewer, input: Parameters<typeof history.promoteScenario>[1]) => history.promoteScenario(v, input).then((r) => ({ revision: r.revision })),
+  "history.restore": (v: Viewer, input: Parameters<typeof history.restoreSnapshot>[1]) => history.restoreSnapshot(v, input).then((r) => ({ revision: r.revision })),
+  "history.archiveScenario": (v: Viewer, input: { planId: string }) => history.archiveScenario(v, input),
   "division.addLimit": (v: Viewer, input: Parameters<typeof division.addAvailabilityLimit>[1]) => division.addAvailabilityLimit(v, input),
   "division.removeLimit": (v: Viewer, input: { id: string }) => division.removeAvailabilityLimit(v, input),
   "imports.list": (v: Viewer, input: { projectId: string }) => imports.listImports(v, input),

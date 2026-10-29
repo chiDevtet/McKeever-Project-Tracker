@@ -36,8 +36,11 @@ export async function captureSnapshotData(db: Tx, planId: string): Promise<Snaps
   return { schemaVersion: 1, capturedAt: new Date().toISOString(), companyName: plan.project.workspaceName, sources: await sourceSummary(db, plan.project.id), plan };
 }
 
-export async function createSnapshot(db: Tx, input: { planId: string; kind: "BASELINE" | "REPORT" | "REVISION_BACKUP"; name: string; description?: string | null; createdById: string | null }) {
-  const data = await captureSnapshotData(db, input.planId);
+/** Freeze a plan. Pass `plan` to snapshot data already loaded in the same transaction (for example the state before a promotion). */
+export async function createSnapshot(db: Tx, input: { planId: string; kind: "BASELINE" | "REPORT" | "REVISION_BACKUP"; name: string; description?: string | null; createdById: string | null; plan?: PlanData }) {
+  const data: SnapshotData = input.plan
+    ? { schemaVersion: 1, capturedAt: new Date().toISOString(), companyName: input.plan.project.workspaceName, sources: await sourceSummary(db, input.plan.project.id), plan: input.plan }
+    : await captureSnapshotData(db, input.planId);
   return db.planSnapshot.create({
     data: {
       projectId: data.plan.project.id,
