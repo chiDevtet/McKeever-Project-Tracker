@@ -9,6 +9,7 @@ import * as projects from "@/server/services/projects";
 import * as reports from "@/server/services/reports";
 import * as structure from "@/server/services/structure";
 import * as users from "@/server/services/users";
+import * as workspace from "@/server/services/workspace";
 
 /**
  * Authenticated operations reachable at POST /api/rpc/<name>. Each function
@@ -70,6 +71,8 @@ export const procedures = {
   "setup.addMilestoneValue": (v: Viewer, input: Parameters<typeof structure.addMilestoneValue>[1]) => structure.addMilestoneValue(v, input),
   "setup.saveContact": (v: Viewer, input: Parameters<typeof structure.saveContact>[1]) => structure.saveContact(v, input),
   "setup.deleteContact": (v: Viewer, input: Parameters<typeof structure.deleteContact>[1]) => structure.deleteContact(v, input),
+  "settings.get": (v: Viewer) => workspace.getSettings(v),
+  "settings.update": (v: Viewer, input: Parameters<typeof workspace.updateWorkspace>[1]) => workspace.updateWorkspace(v, input),
   "users.invite": (v: Viewer, input: Parameters<typeof users.inviteUser>[1]) => users.inviteUser(v, input),
   "users.revokeInvitation": (v: Viewer, input: { invitationId: string }) => users.revokeInvitation(v, input),
   "users.list": (v: Viewer) => users.listUsers(v),
