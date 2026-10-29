@@ -32,13 +32,14 @@ describe("persistence, edit conflicts, and atomic saves (A07, A23)", () => {
       planId,
       expectedRevision: v.plan.revision,
       ops: [
-        { type: "addActivity", activity: { key: "a1", code: "", name: "Rough-in", phaseId: null, areaId: null, systemId: null, calendarKey: null, plannedStart: WEEK, plannedFinish: "2027-06-11", notes: "note", sortOrder: 0, archived: false } },
+        { type: "addActivity", activity: { key: "a1", code: "", name: "Rough-in", phaseId: null, areaId: null, systemId: null, calendarKey: null, plannedStart: WEEK, plannedFinish: "2027-06-11", costCode: "26-FA-100", notes: "note", sortOrder: 0, archived: false } },
         { type: "setWeeks", nodeKey: pool, values: [{ week: WEEK, headcount: 8 }] },
         { type: "setDay", nodeKey: pool, date: "2027-06-09", headcount: 6, hours: 10 },
       ],
     });
     const reloaded = await loadPlanData(prisma, planId);
     expect(reloaded.activities).toEqual(saved.data.activities);
+    expect(reloaded.activities[0].costCode).toBe("26-FA-100");
     expect(reloaded.entries).toEqual(saved.data.entries);
     const a = computeMeasures(saved.data, WEEK, WEEK).totals;
     const b = computeMeasures(reloaded, WEEK, WEEK).totals;

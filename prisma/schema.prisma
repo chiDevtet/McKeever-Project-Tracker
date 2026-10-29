@@ -510,6 +510,8 @@ model Activity {
   calendarKey   String?
   plannedStart  DateTime  @db.Date
   plannedFinish DateTime  @db.Date
+  // Optional cost code reference (for later budget tracking; no financial logic yet)
+  costCode      String?
   notes         String?
   sortOrder     Int       @default(0)
   archivedAt    DateTime?

@@ -28,7 +28,7 @@ const STATUS_TEXT: Record<string, string> = { NOT_STARTED: "Not started", IN_PRO
 const selectCls = "h-9 w-full rounded-md border bg-background px-2 text-sm";
 
 export function ActivityPanel({ data, activity, canEdit, apply, onRequestMove, onSelectNode }: Props) {
-  const [form, setForm] = useState({ name: activity.name, code: activity.code, phaseId: activity.phaseId ?? "", areaId: activity.areaId ?? "", systemId: activity.systemId ?? "", calendarKey: activity.calendarKey ?? "", notes: activity.notes ?? "" });
+  const [form, setForm] = useState({ name: activity.name, code: activity.code, phaseId: activity.phaseId ?? "", areaId: activity.areaId ?? "", systemId: activity.systemId ?? "", calendarKey: activity.calendarKey ?? "", costCode: activity.costCode ?? "", notes: activity.notes ?? "" });
   const [dates, setDates] = useState({ start: activity.plannedStart, finish: activity.plannedFinish });
   const [link, setLink] = useState({ other: "", lag: "0", direction: "successor" as "successor" | "predecessor" });
   const [milestone, setMilestone] = useState("");
@@ -44,7 +44,7 @@ export function ActivityPanel({ data, activity, canEdit, apply, onRequestMove, o
   function saveDetails() {
     if (!form.name.trim()) return setError("Name is required.");
     setError(null);
-    apply([{ type: "updateActivity", key: activity.key, patch: { name: form.name.trim(), code: form.code.trim(), phaseId: form.phaseId || null, areaId: form.areaId || null, systemId: form.systemId || null, calendarKey: form.calendarKey || null, notes: form.notes || null } }], `Edit ${activity.code}`);
+    apply([{ type: "updateActivity", key: activity.key, patch: { name: form.name.trim(), code: form.code.trim(), phaseId: form.phaseId || null, areaId: form.areaId || null, systemId: form.systemId || null, calendarKey: form.calendarKey || null, costCode: form.costCode.trim() || null, notes: form.notes || null } }], `Edit ${activity.code}`);
   }
 
   function addLink() {
@@ -117,6 +117,12 @@ export function ActivityPanel({ data, activity, canEdit, apply, onRequestMove, o
               Activity ID
             </Label>
             <Input id="act-code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="act-cost" className="text-xs">
+              Cost code (optional)
+            </Label>
+            <Input id="act-cost" maxLength={40} value={form.costCode} onChange={(e) => setForm({ ...form, costCode: e.target.value })} />
           </div>
           <div className="space-y-1">
             <Label htmlFor="act-system" className="text-xs">

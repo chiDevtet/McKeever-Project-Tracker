@@ -221,9 +221,10 @@ export async function buildWorkbook(ds: ReportDataset, chartPng?: Uint8Array): P
       { header: "Allocated hours", key: "hours", width: 10, type: "dec" },
       { header: "Allocation", key: "alloc", width: 14, type: "text" },
       { header: "Source IDs", key: "source", width: 16, type: "text" },
+      { header: "Cost code", key: "costCode", width: 12, type: "text" },
       { header: "Notes", key: "notes", width: 30, type: "text" },
     ],
-    ds.activities.map((a) => ({ code: a.code, name: a.name, phase: a.phase ?? "", area: a.area ?? "", system: a.system, start: xlDate(a.start), finish: xlDate(a.finish), days: a.workingDays, status: a.status, percent: a.percent, as: xlDate(a.actualStart), af: xlDate(a.actualFinish), peak: a.labor?.peak ?? null, hours: a.labor?.hours ?? null, alloc: a.labor ? "Allocated" : "Not allocated", source: a.source ?? "", notes: a.notes ?? "" })),
+    ds.activities.map((a) => ({ code: a.code, name: a.name, phase: a.phase ?? "", area: a.area ?? "", system: a.system, start: xlDate(a.start), finish: xlDate(a.finish), days: a.workingDays, status: a.status, percent: a.percent, as: xlDate(a.actualStart), af: xlDate(a.actualFinish), peak: a.labor?.peak ?? null, hours: a.labor?.hours ?? null, alloc: a.labor ? "Allocated" : "Not allocated", source: a.source ?? "", costCode: a.costCode ?? "", notes: a.notes ?? "" })),
   );
 
   table(

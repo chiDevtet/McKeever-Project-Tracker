@@ -92,6 +92,8 @@ export interface ActivityInput {
   calendarKey: string | null;
   plannedStart: ISODate;
   plannedFinish: ISODate;
+  /** Optional cost code reference. */
+  costCode?: string | null;
   notes: string | null;
   sortOrder: number;
   archived: boolean;

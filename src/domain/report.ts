@@ -127,6 +127,7 @@ export interface ReportDataset {
     actualFinish: ISODate | null;
     labor: LaborSummary | null;
     source: string | null;
+    costCode: string | null;
     notes: string | null;
   }[];
   systems: { id: string; name: string; labor: LaborSummary | null }[];
@@ -274,6 +275,7 @@ export function buildReportDataset(data: PlanData, settings: ReportSettings, ctx
         actualFinish: p?.actualFinish ?? null,
         labor: allocated((t) => t.activityKey === a.key),
         source: src.length ? src.join(", ") : null,
+        costCode: a.costCode ?? null,
         notes: settings.contents.notes ? a.notes : null,
       };
     });

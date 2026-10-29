@@ -48,6 +48,7 @@ export const activitySchema = z.object({
   calendarKey: key.nullable(),
   plannedStart: isoDate,
   plannedFinish: isoDate,
+  costCode: text(40).nullable().optional(),
   notes: text(4000).nullable(),
   sortOrder: z.number().int(),
   archived: z.boolean(),
@@ -340,7 +341,7 @@ export function applyOp(data: PlanData, op: PlanOp): void {
     case "addActivity": {
       if (data.activities.some((a) => a.key === op.activity.key)) throw new PlanOpError("An activity with this key already exists");
       const code = op.activity.code.trim() || nextActivityCode(data);
-      data.activities.push({ ...op.activity, code });
+      data.activities.push({ ...op.activity, code, costCode: op.activity.costCode ?? null });
       return;
     }
     case "updateActivity": {
