@@ -530,7 +530,7 @@ export async function applySourceChanges(viewer: Viewer, raw: { planId: string; 
         action: "source.apply",
         entityType: "SourceVersion",
         entityId: version.id,
-        summary: `Applied source changes (${input.selected.join(", ")})`,
+        summary: `Applied source changes: ${input.selected.map((sel) => { const [externalId, key] = sel.split("|"); return `${externalId} → ${before.activities.find((a) => a.key === key)?.code ?? "activity"}`; }).join(", ")}`,
         before: before.activities.filter((a) => ops.some((o) => "key" in o && o.key === a.key)).map((a) => ({ key: a.key, code: a.code, start: a.plannedStart, finish: a.plannedFinish })),
         after: { activities: after.activities.filter((a) => ops.some((o) => "key" in o && o.key === a.key)).map((a) => ({ key: a.key, code: a.code, start: a.plannedStart, finish: a.plannedFinish })), selected: input.selected, version: version.versionNumber, opCount: ops.length },
       });

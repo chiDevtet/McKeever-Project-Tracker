@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { dateFromDb, dateToDb, isISODate } from "@/domain/dates";
-import { normalizeProgress, validateProgress, type ProgressDraft } from "@/domain/progress";
+import { normalizeProgress, PROGRESS_STATUS_LABELS, validateProgress, type ProgressDraft } from "@/domain/progress";
 import { todayInTimeZone } from "@/domain/tz";
 import type { Prisma } from "@/generated/prisma/client";
 import { audit } from "@/server/audit";
@@ -65,7 +65,7 @@ export async function updateProgress(viewer: Viewer, raw: z.input<typeof progres
       action: reopened ? "progress.reopen" : "progress.update",
       entityType: "Activity",
       entityId: activity.id,
-      summary: `${activity.code} ${reopened ? "reopened" : "progress"}: ${before?.status ?? "NOT_STARTED"} → ${next.status}${next.percentComplete !== null ? ` (${next.percentComplete}%)` : ""}`,
+      summary: `${activity.code} ${reopened ? "reopened" : "progress"}: ${PROGRESS_STATUS_LABELS[before?.status ?? "NOT_STARTED"]} → ${PROGRESS_STATUS_LABELS[next.status]}${next.percentComplete !== null ? ` (${next.percentComplete}%)` : ""}`,
       before,
       after: { ...after, note },
     });
