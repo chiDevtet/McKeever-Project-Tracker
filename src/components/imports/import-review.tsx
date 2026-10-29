@@ -398,6 +398,7 @@ function PagePreview({ session, page, highlight }: { session: ImportView["sessio
 
 function ReviewGrid({ rows, structure, selectedId, onSelect, editable, onSave, sessionId, revision, onResolved }: { rows: Row[]; structure: Structure; selectedId: string | null; onSelect: (id: string) => void; editable: boolean; onSave: (c: { rowId: string; include?: boolean; reviewed?: Partial<Reviewed>; phaseId?: string | null; areaId?: string | null; systemId?: string | null }[]) => Promise<void>; sessionId: string; revision: number; onResolved: () => Promise<unknown> }) {
   const parent = useRef<HTMLDivElement>(null);
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table/Virtual return unmemoizable functions; React Compiler skips this component by design.
   const v = useVirtualizer({ count: rows.length, getScrollElement: () => parent.current, estimateSize: () => 34, overscan: 12 });
   const cols = "grid grid-cols-[28px_70px_34px_96px_minmax(180px,1fr)_96px_96px_40px_84px_100px_100px_100px] items-center gap-1";
   return (

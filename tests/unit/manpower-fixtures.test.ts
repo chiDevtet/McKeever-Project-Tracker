@@ -56,6 +56,22 @@ describe("fixtures/expected/manpower-cases.json", () => {
     expect(phaseView.isAllocationView).toBe(true);
   });
 
+  it("A05 partial detail: 3 of 8 phase installers in a room leaves 5 remaining; the envelope stays 8", () => {
+    const data = emptyPlan({
+      phases: [{ id: "ph1", key: "phase-1", name: "Phase 1", sortOrder: 0, areaIds: [] }],
+      areas: [{ id: "room", name: "Electrical room", kind: "ROOM", parentId: null, code: null, sortOrder: 0 }],
+      nodes: [node("pool", null), node("phase1", "pool", { phaseId: "ph1" }), node("room", "phase1", { phaseId: "ph1", areaId: "room" })],
+      entries: [week("pool", MON, 8), week("phase1", MON, 8), week("room", MON, 3)],
+    });
+    const blocks = expandAllNodes(data);
+    const ws = localMidnightMs(MON, "America/New_York");
+    const we = localMidnightMs("2027-06-14", "America/New_York");
+    expect(remainingRange(blocks.get("phase1")!, blocks.get("room")!, ws, we)).toEqual({ min: 5, max: 5 });
+    expect(computeMeasures(data, MON, MON, { allocation: (t) => t.areaId === "room" }).weeks[0].installerPeak).toBe(3);
+    expect(computeMeasures(data, MON, MON, { allocation: (t) => t.phaseId === "ph1" }).weeks[0].installerPeak).toBe(8);
+    expect(computeMeasures(data, MON, MON).weeks[0].installerPeak).toBe(8);
+  });
+
   it("dedicated-split: 3 dedicated of 8 shared leaves 5 shared, total 8", () => {
     const e = expected("dedicated-split");
     const data = emptyPlan({

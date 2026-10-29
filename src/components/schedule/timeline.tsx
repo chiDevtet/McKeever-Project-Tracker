@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { addDays, diffDays, eachDay, formatDate, formatDayMonth, isoWeekday, monthShort, type ISODate } from "@/domain/dates";
 import type { MoveRequest } from "@/domain/move";
-import type { ActivityInput, PlanData } from "@/domain/plan";
+import type { ActivityInput, PlanData, SourceWindow } from "@/domain/plan";
 import { projectResolver } from "@/domain/staffing";
 import { todayInTimeZone } from "@/domain/tz";
 import { cn } from "@/lib/utils";
@@ -68,7 +68,7 @@ export function ScheduleTimeline({ data, activities, groupBy, zoom, from, to, se
   const groups = useMemo(() => groupActivities(data, activities, groupBy), [data, activities, groupBy]);
   const progress = useMemo(() => new Map(data.progress.map((p) => [p.activityKey, p])), [data.progress]);
   const sources = useMemo(() => {
-    const m = new Map<string, typeof data.sourceWindows>();
+    const m = new Map<string, SourceWindow[]>();
     for (const s of data.sourceWindows) m.set(s.activityKey, [...(m.get(s.activityKey) ?? []), s]);
     return m;
   }, [data.sourceWindows]);

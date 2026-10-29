@@ -121,6 +121,7 @@ export function ScheduleWorkspace({ view }: { view: PlanView }) {
     ],
     [checked, data, progress, issuesByActivity],
   );
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table/Virtual return unmemoizable functions; React Compiler skips this component by design.
   const table = useReactTable({ data: visible, columns, state: { sorting }, onSortingChange: setSorting, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getRowId: (a) => a.key });
   const sortedRows = table.getRowModel().rows;
 

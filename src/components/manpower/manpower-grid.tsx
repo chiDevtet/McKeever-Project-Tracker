@@ -86,6 +86,7 @@ export function ManpowerGrid({ model, weeks, visibleNodeKeys, allocationLabel, c
   }, [model.tree.roots, model.leaderRows, nodeRows, visibleNodeKeys, allocationLabel]);
 
   const columns = useMemo<ColumnDef<GridRowData>[]>(() => [{ id: "label", header: "Row" }, ...weekIds.map((w) => ({ id: w, header: w }))], [weekIds]);
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table/Virtual return unmemoizable functions; React Compiler skips this component by design.
   const table = useReactTable({ data, columns, state: { expanded }, onExpandedChange: setExpanded, getSubRows: (r) => r.subRows, getCoreRowModel: getCoreRowModel(), getExpandedRowModel: getExpandedRowModel(), getRowId: (r) => r.id });
   const rows = table.getRowModel().rows;
 
