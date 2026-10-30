@@ -128,7 +128,7 @@ export function ImportsHome({ projectId, lists, plan, canEdit, initialLineage }:
             <div className="mt-1 flex flex-wrap gap-1">
               {l.versions.length === 0 ? <span className="text-xs text-muted-foreground">No committed versions.</span> : null}
               {l.versions.map((v) => (
-                <button key={v.id} type="button" onClick={() => setVersionId(v.id)} className={cn("rounded border px-2 py-0.5 text-xs", versionId === v.id ? "border-brand bg-brand text-white" : "bg-background")}>
+                <button key={v.id} type="button" onClick={() => setVersionId(v.id)} className={cn("rounded border px-2 py-0.5 text-xs", versionId === v.id ? "border-brand-line bg-brand text-white" : "bg-background")}>
                   v{v.versionNumber} {v.label}
                   {v.dataDate ? ` · data date ${formatDate(v.dataDate)}` : ""}
                 </button>

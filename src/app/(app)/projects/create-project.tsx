@@ -105,7 +105,7 @@ export function CreateProjectButton() {
               {WEEKDAY_SHORT.map((d, i) => {
                 const on = workdays.includes(i + 1);
                 return (
-                  <button key={d} type="button" aria-pressed={on} onClick={() => setWorkdays(on ? workdays.filter((x) => x !== i + 1) : [...workdays, i + 1].sort())} className={`rounded border px-2.5 py-1 text-xs ${on ? "border-brand bg-brand text-white" : "bg-background"}`}>
+                  <button key={d} type="button" aria-pressed={on} onClick={() => setWorkdays(on ? workdays.filter((x) => x !== i + 1) : [...workdays, i + 1].sort())} className={`rounded border px-2.5 py-1 text-xs ${on ? "border-brand-line bg-brand text-white" : "bg-background"}`}>
                     {on ? "✓ " : ""}
                     {d}
                   </button>

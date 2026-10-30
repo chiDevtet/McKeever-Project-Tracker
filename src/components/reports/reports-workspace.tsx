@@ -74,7 +74,7 @@ function Preview({ ds }: { ds: ReturnType<typeof buildReportDataset> }) {
           Preview · {pages.length} page{pages.length === 1 ? "" : "s"} · Letter {orientation} · same template and data as the generated PDF
         </span>
       </div>
-      <iframe ref={frame} title="Report preview" className="h-[75dvh] w-full rounded-md border bg-[#e9e9e6]" sandbox="allow-same-origin" />
+      <iframe ref={frame} title="Report preview" className="h-[75dvh] w-full rounded-md border bg-muted" sandbox="allow-same-origin" />
       {body ? createPortal(<ReportDocument ds={ds} />, body) : null}
     </div>
   );
@@ -417,7 +417,7 @@ function FilterChips({ label, options, value, onChange }: { label: string; optio
       {options.map((o) => {
         const on = value.includes(o.id);
         return (
-          <button key={o.id} type="button" aria-pressed={on} onClick={() => onChange(on ? value.filter((x) => x !== o.id) : [...value, o.id])} className={cn("rounded border px-1.5 py-0.5", on ? "border-brand bg-brand text-white" : "bg-background")}>
+          <button key={o.id} type="button" aria-pressed={on} onClick={() => onChange(on ? value.filter((x) => x !== o.id) : [...value, o.id])} className={cn("rounded border px-1.5 py-0.5", on ? "border-brand-line bg-brand text-white" : "bg-background")}>
             {on ? "✓ " : ""}
             {o.name}
           </button>

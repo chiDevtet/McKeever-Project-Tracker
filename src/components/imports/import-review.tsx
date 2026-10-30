@@ -145,7 +145,7 @@ export function ImportReview({ initial, structure, canEdit }: { initial: ImportV
         {STAGES.map((st, i) => {
           const reached = STAGES.indexOf(s.status === "EXTRACTING" ? "UPLOADED" : s.status) >= i || (s.status === "NEEDS_REVIEW" && i <= 2);
           return (
-            <li key={st} className={cn("flex items-center gap-1 rounded-full border px-2 py-0.5", reached ? "border-brand bg-brand/10 text-foreground" : "text-muted-foreground")}>
+            <li key={st} className={cn("flex items-center gap-1 rounded-full border px-2 py-0.5", reached ? "border-brand-line bg-brand/10 text-foreground" : "text-muted-foreground")}>
               {reached ? <CheckCircle2 className="size-3" aria-hidden /> : <span className="size-3 rounded-full border" aria-hidden />}
               {STATUS_LABEL[st]}
             </li>
@@ -387,7 +387,7 @@ function PagePreview({ session, page, highlight }: { session: ImportView["sessio
       <div className="relative overflow-hidden rounded-md border bg-white">
         {/* eslint-disable-next-line @next/next/no-img-element -- private, access-checked image */}
         <img src={`/api/imports/${session.id}/pages/${page}`} alt={`Source schedule page ${page}`} className="block h-auto w-full" />
-        {highlight !== null && height ? <div aria-hidden className="pointer-events-none absolute inset-x-0 border-y-2 border-brand bg-brand/15" style={{ top: `${((highlight - 5) / height) * 100}%`, height: `${(20 / height) * 100}%` }} /> : null}
+        {highlight !== null && height ? <div aria-hidden className="pointer-events-none absolute inset-x-0 border-y-2 border-brand-line bg-brand/15" style={{ top: `${((highlight - 5) / height) * 100}%`, height: `${(20 / height) * 100}%` }} /> : null}
       </div>
       <a className="text-xs underline" href={pdfHref} target="_blank" rel="noreferrer">
         Open page {page} of the original PDF
@@ -473,7 +473,7 @@ function ReviewGrid({ rows, structure, selectedId, onSelect, editable, onSave, s
 
 function EditableText({ value, disabled, title, onCommit }: { value: string; disabled: boolean; title: string; onCommit: (v: string) => void }) {
   const [t, setT] = useState(value);
-  return <input aria-label="Reviewed name" disabled={disabled} title={title} className="h-6 w-full truncate rounded border border-transparent bg-transparent px-1 hover:border-border focus:border-brand disabled:hover:border-transparent" value={t} onChange={(e) => setT(e.target.value)} onBlur={() => t.trim() && t !== value && onCommit(t.trim())} />;
+  return <input aria-label="Reviewed name" disabled={disabled} title={title} className="h-6 w-full truncate rounded border border-transparent bg-transparent px-1 hover:border-border focus:border-brand-line disabled:hover:border-transparent" value={t} onChange={(e) => setT(e.target.value)} onBlur={() => t.trim() && t !== value && onCommit(t.trim())} />;
 }
 
 function EditableDate({ value, original, disabled, onCommit }: { value: string | null; original: string | null; disabled: boolean; onCommit: (v: string | null) => void }) {

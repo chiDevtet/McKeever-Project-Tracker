@@ -4,7 +4,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
           <div className="text-xl font-semibold tracking-tight text-foreground">
-            M<span className="text-brand">&amp;</span>N FieldOps
+            M<span className="text-brand-line">&amp;</span>N FieldOps
           </div>
           <div className="text-sm text-muted-foreground">Manpower and scheduling</div>
         </div>
