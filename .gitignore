@@ -2,11 +2,12 @@
 node_modules/
 .pnpm-store/
 
-# next.js / build
-.next/
-out/
-build/
-dist/
+# next.js / build (anchored to the repository root so source folders with
+# these names are never ignored)
+/.next/
+/out/
+/build/
+/dist/
 next-env.d.ts
 *.tsbuildinfo
 
@@ -14,14 +15,15 @@ next-env.d.ts
 src/generated/
 
 # local private data: storage, backups, generated exports, test output
-.data/
-storage/
-backups/
-test-results/
-playwright-report/
-blob-report/
-coverage/
-artifacts/
+# (root-anchored: an unanchored "storage/" once hid src/server/storage/)
+/.data/
+/storage/
+/backups/
+/test-results/
+/playwright-report/
+/blob-report/
+/coverage/
+/artifacts/
 
 # environment and secrets
 .env
