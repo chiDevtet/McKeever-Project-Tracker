@@ -41,6 +41,8 @@ FieldOps plans weekly installer staffing and named leadership against project ca
 | Plans & history | Baselines, scenarios (copy, compare, promote), restore, working revisions, audit log. |
 | People / Settings | Personnel (separate from logins), invite-only users with project roles, branding, roles, milestone codes, availability limits, configuration status. |
 
+**Appearance.** Soft dark (charcoal and slate surfaces, about two-thirds of the way to black) is the default; a **Light / Dark** control sits in the sidebar and under Settings › Appearance. The choice is stored in a cookie, so the server renders the right theme before first paint (no flash), and mirrored in localStorage. The workspace brand color stays the accent in both themes; PDF and Excel exports keep their light print palette.
+
 Roles: **Administrator** (everything), **Project manager** (edit assigned projects), **Internal viewer** and **Foreman viewer** (read assigned projects and download their reports). Every server operation checks access itself; a project you cannot access is reported as not found.
 
 ## Architecture
@@ -105,7 +107,17 @@ Set `BETTER_AUTH_SECRET` in `.env` (for example from `openssl rand -base64 32`),
 pnpm db:migrate && pnpm db:seed
 ```
 
-The seed is idempotent. It creates the workspace, CMH139 with its systems (fire alarm, VESDA, emergency responder radio, cellular boosting; ERRS/ERRC kept as source aliases), six phases, milestone **candidates** with their sources (including the Phase 1 NEA disagreement between the 16 Oct and 23 Oct correspondence), Tyler Sisia as PM candidate, the foreman as TBD, and attaches the original schedule PDF as a document without importing it. It invents no staffing, onsite windows, progress, or names.
+The seed is idempotent and safe to re-run. It creates (or completes) the workspace and CMH139 with its systems (fire alarm, VESDA, emergency responder radio, cellular boosting; ERRS/ERRC kept as source aliases), all six phases with their ROMP pairs, milestone **candidates** with their sources (including the Phase 1 NEA disagreement between the 16 Oct and 23 Oct correspondence, and PCO from the schedule), Tyler Sisia as PM candidate and the foreman as TBD (no assignment dates), and attaches the original schedule PDF as a document without importing it. From `fixtures/seed/cmh139.phase-plan.json` it sets each phase window (Start Work Date through PCO, from the schedule's Contract Milestones on pages 1–3) and a planned reservation of **8 installers per phase** over exactly that window, with the shared pool's capacity derived as the sum of the active phase reservations. Planned headcount is capacity, not named employees; no progress or names are invented.
+
+### Reconciling an existing database
+
+Databases seeded by an earlier version may show fewer phases or no phase staffing. Re-running the seed completes them in place; it never deletes or recreates the project:
+
+```bash
+pnpm db:migrate && pnpm db:seed
+```
+
+Back up first if the database holds real work (`ENV_FILE=.env scripts/backup.sh`). The reconciliation adds missing phases, ROMP areas and memberships, milestones, and source values without duplicates; it never changes milestone dates or review state, actual progress, imported source versions, or people. Phase windows already set by an operator are kept (and logged), and a seed reservation whose staffing was edited is left as edited. Inside the phase-plan date range (17 May 2027–30 Apr 2028) the pool's weekly capacity is re-derived from the reservations it supplies, including any other crews under the pool, so hand-entered pool capacity in that range is replaced by the derived totals. Staffing changes are validated like any edit and recorded as a new working-plan revision ("Seeded phase windows and planned installer headcount"). The log lists the six phases and each phase's headcount and window; a second run reports "already up to date".
 
 Optional illustrative training data, clearly separate from CMH139 (projects `DEMO-A` and `DEMO-B`; requires an administrator to exist):
 

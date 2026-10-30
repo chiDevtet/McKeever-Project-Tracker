@@ -386,6 +386,8 @@ export interface MutationOptions {
   check?: (after: PlanData, before: PlanData) => void;
   /** Additional writes in the same transaction. */
   alsoWrite?: (tx: Tx, after: PlanData, before: PlanData) => Promise<void>;
+  /** Required when the actor is the system (viewer null), for example the seed. */
+  workspaceId?: string;
 }
 
 /**
@@ -394,7 +396,7 @@ export interface MutationOptions {
  * plan row, so concurrent writers serialize and a failure leaves nothing
  * half-applied.
  */
-export async function mutatePlan(viewer: Viewer, planId: string, expectedRevision: number, ops: PlanOp[] | ((data: PlanData) => PlanData), opts: MutationOptions): Promise<MutationResult> {
+export async function mutatePlan(viewer: Viewer | null, planId: string, expectedRevision: number, ops: PlanOp[] | ((data: PlanData) => PlanData), opts: MutationOptions): Promise<MutationResult> {
   try {
     return await prisma.$transaction(
       async (tx) => {
@@ -415,8 +417,9 @@ export async function mutatePlan(viewer: Viewer, planId: string, expectedRevisio
         await persistPlanDiff(tx, planId, before.project.id, before, after);
         await opts.alsoWrite?.(tx, after, before);
         const revision = expectedRevision + 1;
-        await tx.planRevision.create({ data: { planId, revision, kind: opts.kind ?? "EDIT", summary: opts.summary.slice(0, 2000), actorId: viewer.userId } });
+        await tx.planRevision.create({ data: { planId, revision, kind: opts.kind ?? "EDIT", summary: opts.summary.slice(0, 2000), actorId: viewer?.userId ?? null } });
         await audit(tx, viewer, {
+          workspaceId: viewer ? undefined : opts.workspaceId,
           projectId: before.project.id,
           planId,
           action: `plan.${(opts.kind ?? "EDIT").toLowerCase()}`,

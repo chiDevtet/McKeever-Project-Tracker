@@ -1,0 +1,235 @@
+{
+  "schemaVersion": 1,
+  "classification": "schedule-derived phase windows and planned capacity for operator review",
+  "source": {
+    "key": "gray-pdf-2026-10-15",
+    "label": "Gray preliminary schedule 2026-10-15",
+    "path": "fixtures/source/CMH139_Preliminary_Schedule_2026-10-15.pdf",
+    "section": "Contract Milestones",
+    "pages": [
+      1,
+      2,
+      3
+    ]
+  },
+  "notes": [
+    "Each phase window runs from the phase Start Work Date (Gray Early Start Work Date for Phases 3-6) through the phase PCO milestone, as printed in the Contract Milestones section.",
+    "Phase FEA appears in the schedule only for Phase 1; no FEA is given for Phases 2-6.",
+    "Phase 6 PFHO and PCO are both 28 Apr 2028.",
+    "Planned headcount is capacity for planning, not named or identified employees."
+  ],
+  "phases": [
+    {
+      "key": "phase-1",
+      "name": "Phase 1",
+      "romps": [
+        1,
+        3
+      ],
+      "scheduleWbs": "Phase 1 (ROMP01 & 03)",
+      "window": {
+        "start": "2027-05-20",
+        "finish": "2027-12-10"
+      },
+      "scheduleMilestones": [
+        {
+          "code": "SWD",
+          "externalId": "MS10000",
+          "scheduleLabel": "Milestone Phase 1 - Start Work Date",
+          "date": "2027-05-20",
+          "page": 1
+        },
+        {
+          "code": "PCO",
+          "externalId": "MS10120",
+          "scheduleLabel": "Milestone Phase 1 - PCO",
+          "date": "2027-12-10",
+          "page": 2
+        }
+      ]
+    },
+    {
+      "key": "phase-2",
+      "name": "Phase 2",
+      "romps": [
+        2,
+        4
+      ],
+      "scheduleWbs": "Phase 2 (ROMP02 & 04)",
+      "window": {
+        "start": "2027-05-31",
+        "finish": "2028-01-21"
+      },
+      "scheduleMilestones": [
+        {
+          "code": "SWD",
+          "externalId": "MS20000",
+          "scheduleLabel": "Milestone Phase 2 - Start Work Date",
+          "date": "2027-05-31",
+          "page": 2
+        },
+        {
+          "code": "PCO",
+          "externalId": "MS20100",
+          "scheduleLabel": "Milestone Phase 2 - PCO",
+          "date": "2028-01-21",
+          "page": 2
+        }
+      ]
+    },
+    {
+      "key": "phase-3",
+      "name": "Phase 3",
+      "romps": [
+        5,
+        7
+      ],
+      "scheduleWbs": "Phase 3 (ROMP05 & 07)",
+      "window": {
+        "start": "2027-05-31",
+        "finish": "2028-02-18"
+      },
+      "scheduleMilestones": [
+        {
+          "code": "SWD",
+          "externalId": "MS30000",
+          "scheduleLabel": "Milestone Phase 3 - Gray Early Start Work Date",
+          "date": "2027-05-31",
+          "page": 2
+        },
+        {
+          "code": "PCO",
+          "externalId": "MS30100",
+          "scheduleLabel": "Milestone Phase 3 - PCO",
+          "date": "2028-02-18",
+          "page": 2
+        }
+      ]
+    },
+    {
+      "key": "phase-4",
+      "name": "Phase 4",
+      "romps": [
+        6,
+        8
+      ],
+      "scheduleWbs": "Phase 4 (ROMP06 & 08)",
+      "window": {
+        "start": "2027-06-18",
+        "finish": "2028-03-17"
+      },
+      "scheduleMilestones": [
+        {
+          "code": "SWD",
+          "externalId": "MS40000",
+          "scheduleLabel": "Milestone Phase 4 - Gray Early Start Work Date",
+          "date": "2027-06-18",
+          "page": 2
+        },
+        {
+          "code": "PCO",
+          "externalId": "MS40100",
+          "scheduleLabel": "Milestone Phase 4 - PCO",
+          "date": "2028-03-17",
+          "page": 3
+        }
+      ]
+    },
+    {
+      "key": "phase-5",
+      "name": "Phase 5",
+      "romps": [
+        9,
+        11
+      ],
+      "scheduleWbs": "Phase 5 (ROMP09 & 11)",
+      "window": {
+        "start": "2027-07-23",
+        "finish": "2028-04-14"
+      },
+      "scheduleMilestones": [
+        {
+          "code": "SWD",
+          "externalId": "MS50000",
+          "scheduleLabel": "Milestone Phase 5 - Gray Early Start Work Date",
+          "date": "2027-07-23",
+          "page": 3
+        },
+        {
+          "code": "PCO",
+          "externalId": "MS50100",
+          "scheduleLabel": "Milestone Phase 5 - PCO",
+          "date": "2028-04-14",
+          "page": 3
+        }
+      ]
+    },
+    {
+      "key": "phase-6",
+      "name": "Phase 6",
+      "romps": [
+        10,
+        12
+      ],
+      "scheduleWbs": "Phase 6 (ROMP10 & 12)",
+      "window": {
+        "start": "2027-08-27",
+        "finish": "2028-04-28"
+      },
+      "scheduleMilestones": [
+        {
+          "code": "SWD",
+          "externalId": "MS60000",
+          "scheduleLabel": "Milestone Phase 6 - Gray Early Start Work Date",
+          "date": "2027-08-27",
+          "page": 3
+        },
+        {
+          "code": "PCO",
+          "externalId": "MS60100",
+          "scheduleLabel": "Milestone Phase 6 - PCO",
+          "date": "2028-04-28",
+          "page": 3
+        }
+      ]
+    }
+  ],
+  "workforcePlans": [
+    {
+      "phaseKey": "phase-1",
+      "role": "Installer",
+      "plannedHeadcount": 8,
+      "window": "phase"
+    },
+    {
+      "phaseKey": "phase-2",
+      "role": "Installer",
+      "plannedHeadcount": 8,
+      "window": "phase"
+    },
+    {
+      "phaseKey": "phase-3",
+      "role": "Installer",
+      "plannedHeadcount": 8,
+      "window": "phase"
+    },
+    {
+      "phaseKey": "phase-4",
+      "role": "Installer",
+      "plannedHeadcount": 8,
+      "window": "phase"
+    },
+    {
+      "phaseKey": "phase-5",
+      "role": "Installer",
+      "plannedHeadcount": 8,
+      "window": "phase"
+    },
+    {
+      "phaseKey": "phase-6",
+      "role": "Installer",
+      "plannedHeadcount": 8,
+      "window": "phase"
+    }
+  ]
+}

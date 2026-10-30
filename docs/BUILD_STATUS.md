@@ -45,6 +45,12 @@ All six stages of the first release are complete.
 
 Details: [`ACCEPTANCE_EVIDENCE.md`](ACCEPTANCE_EVIDENCE.md).
 
+## Change: soft dark default and CMH139 phase reconciliation (30 Oct 2026)
+
+- Soft dark theme is the default with a persistent Light/Dark control (sidebar and Settings); tokens in `src/app/globals.css`, preference in a cookie plus localStorage, no flash.
+- `pnpm db:seed` now reconciles CMH139 in place: six phases with ROMPs, schedule phase windows (Start Work Date → PCO), PCO candidates, and 8 planned installers per phase with pool capacity derived from the reservations. See README › Reconciling an existing database.
+- Checks: `pnpm check` (typecheck, lint, 42 unit tests), `pnpm test:integration` (6 files, 35 tests, including `cmh139-seed.test.ts`), `pnpm test:e2e` (16 tests including `theme.spec.ts`), `pnpm build`.
+
 ## Blockers
 
 _None._ Cloud deployment (VPS, DNS, Neon, R2, SMTP) is configuration only and was not performed from this repository.
