@@ -233,7 +233,7 @@ function Phases({ setup, canEdit, editor }: { setup: Setup; canEdit: boolean; ed
                       {romps.map((a) => {
                         const on = ph.areaIds.includes(a.id);
                         return (
-                          <button key={a.id} type="button" disabled={!canEdit || busy} aria-pressed={on} onClick={() => run(() => rpc("setup.savePhase", { projectId: setup.project.id, id: ph.id, name: ph.name, areaIds: on ? ph.areaIds.filter((x) => x !== a.id) : [...ph.areaIds, a.id] }))} className={`rounded border px-1.5 py-0.5 text-xs ${on ? "border-brand bg-brand text-white" : "bg-background text-muted-foreground"}`}>
+                          <button key={a.id} type="button" disabled={!canEdit || busy} aria-pressed={on} onClick={() => run(() => rpc("setup.savePhase", { projectId: setup.project.id, id: ph.id, name: ph.name, areaIds: on ? ph.areaIds.filter((x) => x !== a.id) : [...ph.areaIds, a.id] }))} className={`rounded border px-1.5 py-0.5 text-xs ${on ? "border-brand-line bg-brand text-white" : "bg-background text-muted-foreground"}`}>
                             {on ? "✓ " : ""}
                             {a.name}
                           </button>

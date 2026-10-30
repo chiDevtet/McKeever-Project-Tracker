@@ -46,7 +46,7 @@ export function DivisionFilters({ projects, roles, from, to }: { projects: { id:
               key={p.id}
               type="button"
               aria-pressed={on}
-              className={`rounded border px-2 py-1 ${on ? "border-brand bg-brand text-white" : "bg-background"}`}
+              className={`rounded border px-2 py-1 ${on ? "border-brand-line bg-brand text-white" : "bg-background"}`}
               onClick={() => {
                 const current = selected.length ? selected : projects.map((x) => x.id);
                 const next = current.includes(p.id) ? current.filter((x) => x !== p.id) : [...current, p.id];

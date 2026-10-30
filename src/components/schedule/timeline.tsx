@@ -138,8 +138,8 @@ export function ScheduleTimeline({ data, activities, groupBy, zoom, from, to, se
             <div className="absolute inset-x-0 top-10 h-[22px]">
               {milestones.map(({ m, date }) => (
                 <div key={m.id} className="absolute -translate-x-1/2 text-center" style={{ left: x(date) + dayW / 2, top: 0 }} title={`${m.code} ${m.name}: ${formatDate(date)} ${m.reviewStatus === "CONFIRMED" ? "(confirmed)" : "(candidate — needs review)"}`}>
-                  <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
-                    <path d="M6 1 L11 6 L6 11 L1 6 Z" fill={m.reviewStatus === "CONFIRMED" ? "#1c1e21" : "#ffffff"} stroke="#1c1e21" strokeWidth="1.5" />
+                  <svg width="12" height="12" viewBox="0 0 12 12" className="text-foreground" aria-hidden>
+                    <path d="M6 1 L11 6 L6 11 L1 6 Z" fill={m.reviewStatus === "CONFIRMED" ? "currentColor" : "var(--card)"} stroke="currentColor" strokeWidth="1.5" />
                   </svg>
                   <div className="-mt-0.5 whitespace-nowrap text-[9px] leading-none">{m.code}</div>
                 </div>
@@ -236,9 +236,9 @@ export function ScheduleTimeline({ data, activities, groupBy, zoom, from, to, se
                       setDrag(next);
                     }}
                     className={cn(
-                      "absolute flex items-center overflow-hidden rounded px-1 text-left text-[10px] leading-none text-white outline-offset-1 focus-visible:outline-2 focus-visible:outline-brand",
-                      status === "COMPLETE" ? "bg-[#4b5057]" : status === "ON_HOLD" ? "bg-[#9a5b00]" : "bg-brand",
-                      selectedKey === a.key && "ring-2 ring-foreground ring-offset-1",
+                      "absolute flex items-center overflow-hidden rounded px-1 text-left text-[10px] leading-none text-bar-foreground outline-offset-1 focus-visible:outline-2 focus-visible:outline-brand-line",
+                      status === "COMPLETE" ? "bg-bar-complete" : status === "ON_HOLD" ? "bg-bar-hold" : "bg-bar-active",
+                      selectedKey === a.key && "ring-2 ring-foreground ring-offset-1 ring-offset-background",
                       canEdit && status !== "COMPLETE" ? "cursor-grab" : "cursor-pointer",
                       dragging && "opacity-80",
                     )}
@@ -254,7 +254,7 @@ export function ScheduleTimeline({ data, activities, groupBy, zoom, from, to, se
                     {canEdit && status !== "COMPLETE" ? <span data-handle="end" className="absolute inset-y-0 right-0 w-2 cursor-ew-resize bg-white/30" aria-hidden /> : null}
                   </button>
                   {dragging ? (
-                    <div className="pointer-events-none absolute -top-0.5 z-10 rounded bg-foreground px-1 text-[10px] text-white" style={{ left: left + w + 4 }}>
+                    <div className="pointer-events-none absolute -top-0.5 z-10 rounded bg-foreground px-1 text-[10px] text-background" style={{ left: left + w + 4 }}>
                       {dragging.mode === "move" ? `${dxDays >= 0 ? "+" : ""}${dxDays} d` : `finish ${formatDate(addDays(a.plannedFinish, dxDays))}`}
                     </div>
                   ) : null}
@@ -264,7 +264,7 @@ export function ScheduleTimeline({ data, activities, groupBy, zoom, from, to, se
             <svg className="pointer-events-none absolute inset-0" width={width} height={layout.rows.length * ROW_H} aria-hidden>
               <defs>
                 <marker id="arrow" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="6" markerHeight="6" orient="auto">
-                  <path d="M0,0 L6,3 L0,6 Z" fill="#5f646b" />
+                  <path d="M0,0 L6,3 L0,6 Z" fill="var(--muted-foreground)" />
                 </marker>
               </defs>
               {data.links.map((l) => {
@@ -276,7 +276,7 @@ export function ScheduleTimeline({ data, activities, groupBy, zoom, from, to, se
                 const x1 = x(addDays(p.plannedFinish, 1));
                 const x2 = x(s.plannedStart);
                 const mid = Math.max(x1 + 6, Math.min(x2 - 6, x1 + 10));
-                return <path key={`${l.predecessorKey}>${l.successorKey}`} d={`M${x1},${y1} H${mid} V${y2} H${x2}`} fill="none" stroke="#5f646b" strokeWidth="1" markerEnd="url(#arrow)" />;
+                return <path key={`${l.predecessorKey}>${l.successorKey}`} d={`M${x1},${y1} H${mid} V${y2} H${x2}`} fill="none" stroke="var(--muted-foreground)" strokeWidth="1" markerEnd="url(#arrow)" />;
               })}
             </svg>
           </div>

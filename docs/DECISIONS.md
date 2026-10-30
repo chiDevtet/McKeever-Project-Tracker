@@ -61,3 +61,25 @@ Implementation decisions made while building the first release, in addition to [
 | T01 | Integration tests and browser tests use a disposable database (`TEST_DATABASE_URL`) that the setup drops, migrates, and seeds; they refuse to run if it equals `DATABASE_URL`. | Real PostgreSQL behavior (transactions, triggers, constraints) without risk to development data. |
 | T02 | Browser tests run against `next start` plus the worker, started by the Playwright global setup after the database reset. | Exercises the production build and real background jobs. |
 | T03 | Illustrative eight-person cases live only in tests and in the separate `DEMO-A`/`DEMO-B` seed. | CMH139 must not receive invented staffing. |
+
+## Theme (soft dark default)
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| U01 | One set of semantic tokens in `globals.css` (`:root` light, `.dark` soft dark), including new `field`, `overlay`, `brand-line`, timeline bar, and chart tokens. Components use tokens rather than fixed light-only colors. | Every route and shared component themes consistently; light stays a complete alternative. |
+| U02 | Soft dark is the default. The preference is a cookie (`fieldops_theme`) read by the root layout, so the server renders the correct `<html>` class: no flash and no hydration mismatch, even without JavaScript. It is mirrored in localStorage; a tiny head script restores it if only localStorage survives. | Next 16 `beforeInteractive` inline scripts run through the client runtime, possibly after first paint; a server-rendered class cannot flash. |
+| U03 | The workspace brand color is written to `:root` by the authenticated layout. Brand backgrounds keep white text; brand-colored lines, text, and focus rings use `--brand-line`, a lighter brand mix in dark mode. | The brand was previously set on an inner element, so `--primary`, the focus ring, and portaled dialogs ignored a custom brand; the dark default brand blue is too dark for lines on dark surfaces. |
+| U04 | Dark chart series are separate validated steps (installers `#468de0`, leadership `#e56b35`, passing every palette check on `#2d343d`); light keeps `#2a78d6` / `#eb6834`. The shared chart reads `var(--token, lightHex)`, so the app themes it while PDF and Excel images keep the light print palette. | One chart component for screen and export, readable on both surfaces. |
+| U05 | Contrast was measured, not eyeballed: text and status colors meet 4.5:1 on their surfaces; field borders and timeline bars meet 3:1 against the surface. A browser test scans key pages and a dialog in both themes for text below AA. | Readability in both themes. |
+
+## CMH139 phases and planned staffing
+
+| # | Decision | Reason |
+| --- | --- | --- |
+| C01 | `seedCmh139` is a reconciliation, not a create-once seed: records are found by stable identity (project code, phase key or name, ROMP code, milestone phase + code, source label + date, reservation key) and only missing pieces are added. The project is never deleted or recreated. | The previous early return left older databases with an incomplete phase set. |
+| C02 | Phase windows, schedule milestones (SWD and PCO with external IDs and pages), and planned headcount live in a new fixture, `fixtures/seed/cmh139.phase-plan.json`, verified against the schedule PDF's Contract Milestones (pages 1–3). The original candidates fixture is unchanged (its checksum is in `MANIFEST.json`). | Provenance stays explicit; the handoff fixture stays verifiable. |
+| C03 | Phase windows run from the Start Work Date (Gray Early Start Work Date for Phases 3–6, kept in the source-value note) through PCO. PCO is added as a schedule-sourced candidate. FEA is dated only for Phase 1; Phases 2–6 keep FEA as "not specified". The Phase 1 NEA discrepancy stays exactly two source values (no schedule value is added to NEA). | Source fidelity; no reconciliation of conflicting sources by the seed. |
+| C04 | Each phase gets one RESERVATION node (`cmh139-phase-N-installers`) of 8 under the shared installer pool. Weeks wholly inside the window use a WEEK entry; boundary weeks use DAY entries for in-window working days only, so nobody is scheduled outside the window even if the calendar later opens a weekend day. | Exact windows with the existing staffing-entry model. |
+| C05 | The pool's capacity inside the phase-plan range is derived from the reservations it supplies (sum of each direct reservation's daily peak, WEEK where uniform, DAY otherwise), so overlapping phases give 8 × active phases and any other crews under the pool stay covered. | Capacity conservation without a flat 8 or invented totals. |
+| C06 | Staffing changes go through `mutatePlan` (validated, new revision, audited) with a system actor. A seed reservation whose entries differ from the plan is treated as operator-edited and left as is; an operator-set phase window is kept and logged. | Seed-owned data is updated; operator edits are preserved. |
+

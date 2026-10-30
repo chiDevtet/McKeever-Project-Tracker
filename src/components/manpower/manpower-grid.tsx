@@ -174,7 +174,7 @@ export function ManpowerGrid({ model, weeks, visibleNodeKeys, allocationLabel, c
     const base = cn(
       "h-8 border-b border-r px-1 text-right text-[13px] tabular outline-none",
       closed && "hatch-closed",
-      isSel && "ring-2 ring-inset ring-brand",
+      isSel && "ring-2 ring-inset ring-brand-line",
       inSelection(row.id, week) && !isSel && "bg-accent",
     );
     const focusProps = {
@@ -198,7 +198,7 @@ export function ManpowerGrid({ model, weeks, visibleNodeKeys, allocationLabel, c
               autoFocus
               aria-label={`${r.label}, week of ${formatDate(week)}`}
               inputMode="numeric"
-              className="h-8 w-full bg-white px-1 text-right text-[13px] tabular outline-2 outline-brand"
+              className="h-8 w-full bg-field px-1 text-right text-[13px] tabular outline-2 outline-brand-line"
               value={editing.value}
               onChange={(e) => setEditing({ ...editing, value: e.target.value })}
               onBlur={() => commit(editing.cell, editing.value)}

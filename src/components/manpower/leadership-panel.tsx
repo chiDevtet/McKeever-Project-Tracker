@@ -143,7 +143,7 @@ export function LeadershipPanel({ data, assignment, people, roles, canEdit, week
             {data.systems.map((s) => {
               const on = a.responsibilitySystemIds.includes(s.id);
               return (
-                <button key={s.id} type="button" aria-pressed={on} onClick={() => setA({ ...a, responsibilitySystemIds: toggle(a.responsibilitySystemIds, s.id) })} className={cn("rounded border px-2 py-0.5 text-xs", on ? "border-brand bg-brand text-white" : "bg-background")}>
+                <button key={s.id} type="button" aria-pressed={on} onClick={() => setA({ ...a, responsibilitySystemIds: toggle(a.responsibilitySystemIds, s.id) })} className={cn("rounded border px-2 py-0.5 text-xs", on ? "border-brand-line bg-brand text-white" : "bg-background")}>
                   {on ? "✓ " : ""}
                   {s.name}
                 </button>
@@ -155,7 +155,7 @@ export function LeadershipPanel({ data, assignment, people, roles, canEdit, week
               {data.phases.map((p) => {
                 const on = a.responsibilityPhaseIds.includes(p.id);
                 return (
-                  <button key={p.id} type="button" aria-pressed={on} onClick={() => setA({ ...a, responsibilityPhaseIds: toggle(a.responsibilityPhaseIds, p.id) })} className={cn("rounded border px-2 py-0.5 text-xs", on ? "border-brand bg-brand text-white" : "bg-background")}>
+                  <button key={p.id} type="button" aria-pressed={on} onClick={() => setA({ ...a, responsibilityPhaseIds: toggle(a.responsibilityPhaseIds, p.id) })} className={cn("rounded border px-2 py-0.5 text-xs", on ? "border-brand-line bg-brand text-white" : "bg-background")}>
                     {on ? "✓ " : ""}
                     {p.name}
                   </button>
@@ -189,7 +189,7 @@ export function LeadershipPanel({ data, assignment, people, roles, canEdit, week
               {WEEKDAY_SHORT.map((d, i) => {
                 const on = a.onsiteWeekdays.includes(i + 1);
                 return (
-                  <button key={d} type="button" aria-pressed={on} onClick={() => setA({ ...a, onsiteWeekdays: on ? a.onsiteWeekdays.filter((x) => x !== i + 1) : [...a.onsiteWeekdays, i + 1].sort() })} className={cn("rounded border px-2 py-0.5 text-xs", on ? "border-brand bg-brand text-white" : "bg-background")}>
+                  <button key={d} type="button" aria-pressed={on} onClick={() => setA({ ...a, onsiteWeekdays: on ? a.onsiteWeekdays.filter((x) => x !== i + 1) : [...a.onsiteWeekdays, i + 1].sort() })} className={cn("rounded border px-2 py-0.5 text-xs", on ? "border-brand-line bg-brand text-white" : "bg-background")}>
                     {on ? "✓ " : ""}
                     {d}
                   </button>

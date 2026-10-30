@@ -30,7 +30,7 @@ export function ProjectTabs({ projectId }: { projectId: string }) {
         const href = `/projects/${projectId}/${t.seg}${plan && ["manpower", "schedule", "reports"].includes(t.seg) ? `?plan=${plan}` : ""}`;
         const active = pathname.startsWith(`/projects/${projectId}/${t.seg}`);
         return (
-          <Link key={t.seg} href={href} aria-current={active ? "page" : undefined} className={cn("whitespace-nowrap border-b-2 px-3 py-2 text-sm", active ? "border-brand font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
+          <Link key={t.seg} href={href} aria-current={active ? "page" : undefined} className={cn("whitespace-nowrap border-b-2 px-3 py-2 text-sm", active ? "border-brand-line font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
             {t.label}
           </Link>
         );

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { FormError } from "@/components/form-error";
+import { ThemeToggle } from "@/components/theme/theme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -197,6 +198,12 @@ export function SettingsWorkspace({ settings, isAdmin }: { settings: Settings; i
           </div>
         ) : null}
         <FormError message={limitError} />
+      </section>
+
+      <section className="space-y-2 rounded-lg border bg-background p-3 text-sm">
+        <h2 className="text-sm font-semibold">Appearance</h2>
+        <p className="text-xs text-muted-foreground">Soft dark is the default. Your choice is saved in this browser and applies to every page.</p>
+        <ThemeToggle />
       </section>
 
       <section className="space-y-2 rounded-lg border bg-background p-3 text-sm">

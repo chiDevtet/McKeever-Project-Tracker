@@ -4,6 +4,7 @@ import { BarChart3, CalendarRange, ClipboardCheck, FileText, FolderKanban, Layou
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { ThemeToggle } from "@/components/theme/theme";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -62,7 +63,7 @@ function NavLinks({ lastProjectId, onNavigate }: { lastProjectId: string | null;
           aria-current={it.active ? "page" : undefined}
           className={cn(
             "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-nav-foreground/85 hover:bg-white/10 hover:text-white",
-            it.active && "bg-white/12 font-medium text-white shadow-[inset_3px_0_0_var(--brand)]",
+            it.active && "bg-white/12 font-medium text-white shadow-[inset_3px_0_0_var(--brand-on-nav)]",
           )}
         >
           <it.icon className="size-4 shrink-0" aria-hidden />
@@ -76,11 +77,12 @@ function NavLinks({ lastProjectId, onNavigate }: { lastProjectId: string | null;
 function UserBlock({ userName }: { userName: string }) {
   const router = useRouter();
   return (
-    <div className="border-t border-white/10 px-4 py-3">
+    <div className="space-y-2 border-t border-white/10 px-4 py-3">
+      <ThemeToggle variant="nav" />
       <div className="truncate text-sm text-white">{userName}</div>
       <button
         type="button"
-        className="mt-1 inline-flex items-center gap-1.5 text-xs text-nav-muted hover:text-white"
+        className="inline-flex items-center gap-1.5 text-xs text-nav-muted hover:text-white"
         onClick={async () => {
           await authClient.signOut();
           router.replace("/login");

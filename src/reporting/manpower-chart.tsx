@@ -9,15 +9,21 @@
 
 import { formatDate, formatDayMonth, monthShort, type ISODate } from "@/domain/dates";
 
+/**
+ * Chart colors as CSS variables with the light print values as fallbacks:
+ * the app themes them (light or soft dark, see globals.css), while the PDF
+ * and the Excel chart image, which define no variables, keep the light values.
+ */
 export const SERIES_COLORS = {
-  installer: "#2a78d6",
-  leadership: "#eb6834",
-  grid: "#e6e6e3",
-  axis: "#8a8f96",
-  text: "#4b5057",
-  ink: "#1c1e21",
-  surface: "#ffffff",
-  limit: "#24272b",
+  installer: "var(--series-installer, #2a78d6)",
+  leadership: "var(--series-leadership, #eb6834)",
+  grid: "var(--chart-grid, #e6e6e3)",
+  axis: "var(--chart-axis, #8a8f96)",
+  text: "var(--chart-text, #4b5057)",
+  ink: "var(--chart-ink, #1c1e21)",
+  surface: "var(--card, #ffffff)",
+  limit: "var(--series-limit, #24272b)",
+  active: "var(--chart-active, #eef3fb)",
 } as const;
 
 export type ChartMeasure = "peak" | "hours" | "average";
@@ -178,7 +184,7 @@ export function ManpowerChart({ weeks, measure = "peak", width = 960, height = 2
           >
             <title>{tip}</title>
             {/* Hit target wider than the mark. */}
-            <rect x={margin.left + slot * i} y={margin.top} width={slot} height={innerH} fill={active ? "#eef3fb" : "transparent"} />
+            <rect x={margin.left + slot * i} y={margin.top} width={slot} height={innerH} fill={active ? SERIES_COLORS.active : "transparent"} />
             {aH > 0 ? <path d={columnPath(x, aTop, barW, aH, !(stacked && v.b > 0))} fill={SERIES_COLORS.installer} /> : null}
             {stacked && v.b > 0 && bH > 0 ? <path d={columnPath(x, bTop, barW, bH, true)} fill={texture ? "url(#hatch-leadership)" : SERIES_COLORS.leadership} /> : null}
             {measure === "average" && w.averageEquivalent === null ? (
