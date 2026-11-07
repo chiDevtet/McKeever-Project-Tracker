@@ -1,7 +1,6 @@
 /**
- * Phase staffing plans: planned installer headcount reserved for a phase
- * over its exact window, nested under the shared installer pool, with the
- * pool's capacity derived from the reservations it supplies.
+ * Seed-owned project staffing: phase windows from the schedule and monthly
+ * workforce forecasts applied as weekly / daily headcount on workforce pools.
  *
  * Headcount is planned capacity, not a roster of named people.
  */
@@ -10,96 +9,83 @@ import { addDays, eachDay, startOfWeek, type ISODate } from "./dates";
 import type { CalendarResolver } from "./calendar";
 import type { EntryInput, NodeInput, PlanData } from "./plan";
 import { entryId } from "./plan";
-import { expandAllNodes, projectResolver } from "./staffing";
-
-export interface PhaseStaffing {
-  phaseId: string;
-  nodeKey: string;
-  name: string;
-  notes: string | null;
-  role: string;
-  headcount: number;
-  start: ISODate;
-  finish: ISODate;
-  sortOrder: number;
-}
+import { projectResolver } from "./staffing";
 
 const entry = (nodeKey: string, kind: "WEEK" | "DAY", date: ISODate, headcount: number): EntryInput => ({ nodeKey, kind, date, headcount, hours: null, startTime: null, endTime: null, label: null });
 
 /**
- * Entries that staff `headcount` on every working day of [start, finish] and
- * on no day outside it. Weeks wholly inside the window use one WEEK entry;
- * boundary weeks use DAY entries for their in-window working days only, so a
- * later calendar change cannot schedule anyone outside the window.
+ * Entries giving `valueOn(day)` people on every working day of [from, to]
+ * and nothing outside it. A week wholly inside the range whose working days
+ * share one value uses a WEEK entry; any other week uses DAY entries for its
+ * in-range working days, so no one is scheduled outside the range even if the
+ * calendar later opens a weekend day.
  */
-export function windowEntries(nodeKey: string, start: ISODate, finish: ISODate, headcount: number, cal: CalendarResolver): EntryInput[] {
-  if (finish < start) return [];
-  const out: EntryInput[] = [];
-  for (let week = startOfWeek(start); week <= finish; week = addDays(week, 7)) {
-    const sunday = addDays(week, 6);
-    if (week >= start && sunday <= finish) {
-      out.push(entry(nodeKey, "WEEK", week, headcount));
-      continue;
-    }
-    for (const d of eachDay(week > start ? week : start, sunday < finish ? sunday : finish)) {
-      if (cal.isWorkingDay(d)) out.push(entry(nodeKey, "DAY", d, headcount));
-    }
-  }
-  return out;
-}
-
-/** Peak concurrent headcount of each node per shift date. */
-function dailyPeaks(blocks: { shiftDate: ISODate; startMs: number; endMs: number; headcount: number }[]): Map<ISODate, number> {
-  const byDate = new Map<ISODate, typeof blocks>();
-  for (const b of blocks) byDate.set(b.shiftDate, [...(byDate.get(b.shiftDate) ?? []), b]);
-  const out = new Map<ISODate, number>();
-  for (const [d, list] of byDate) {
-    const events = list.flatMap((b) => [
-      { t: b.startMs, dh: b.headcount },
-      { t: b.endMs, dh: -b.headcount },
-    ]);
-    events.sort((a, b) => a.t - b.t || a.dh - b.dh);
-    let cur = 0;
-    let peak = 0;
-    for (const e of events) {
-      cur += e.dh;
-      peak = Math.max(peak, cur);
-    }
-    out.set(d, peak);
-  }
-  return out;
-}
-
-/**
- * Pool entries for [from, to] (whole weeks) equal to the sum of the pool's
- * direct reservations on each day. A week whose open days all need the same
- * total uses one WEEK entry; otherwise each day with demand gets a DAY entry.
- */
-export function derivedPoolEntries(data: PlanData, poolKey: string, from: ISODate, to: ISODate): EntryInput[] {
-  const children = data.nodes.filter((n) => n.parentKey === poolKey);
-  const blocks = expandAllNodes({ ...data, nodes: data.nodes.filter((n) => n.key === poolKey || n.parentKey === poolKey) }, from, to);
-  const demand = new Map<ISODate, number>();
-  for (const c of children) {
-    for (const [d, peak] of dailyPeaks(blocks.get(c.key) ?? [])) demand.set(d, (demand.get(d) ?? 0) + peak);
-  }
-  const cal = projectResolver(data);
+export function dailyEntries(nodeKey: string, valueOn: (d: ISODate) => number, from: ISODate, to: ISODate, cal: CalendarResolver): EntryInput[] {
+  if (to < from) return [];
   const out: EntryInput[] = [];
   for (let week = startOfWeek(from); week <= to; week = addDays(week, 7)) {
-    const days = eachDay(week, addDays(week, 6));
-    const open = days.filter((d) => cal.isWorkingDay(d));
-    const values = new Set(open.map((d) => demand.get(d) ?? 0));
-    const closedDemand = days.some((d) => !cal.isWorkingDay(d) && (demand.get(d) ?? 0) > 0);
-    if (open.length && values.size === 1 && !closedDemand) {
+    const sunday = addDays(week, 6);
+    const days = eachDay(week > from ? week : from, sunday < to ? sunday : to).filter((d) => cal.isWorkingDay(d));
+    const values = new Set(days.map(valueOn));
+    if (week >= from && sunday <= to && values.size === 1) {
       const v = [...values][0];
-      if (v > 0) out.push(entry(poolKey, "WEEK", week, v));
+      if (v > 0) out.push(entry(nodeKey, "WEEK", week, v));
       continue;
     }
-    for (const d of days) {
-      const v = demand.get(d) ?? 0;
-      if (v > 0) out.push(entry(poolKey, "DAY", d, v));
-    }
+    for (const d of days) if (valueOn(d) > 0) out.push(entry(nodeKey, "DAY", d, valueOn(d)));
   }
   return out;
+}
+
+/** The same headcount on every working day of [start, finish]. */
+export function windowEntries(nodeKey: string, start: ISODate, finish: ISODate, headcount: number, cal: CalendarResolver): EntryInput[] {
+  return dailyEntries(nodeKey, () => headcount, start, finish, cal);
+}
+
+export interface MonthlyHeadcount {
+  /** YYYY-MM */
+  month: string;
+  headcount: number;
+}
+
+/** Headcount of the day's month within [start, finish], else 0. */
+export function monthlyValue(months: MonthlyHeadcount[], start: ISODate, finish: ISODate): (d: ISODate) => number {
+  const byMonth = new Map(months.map((m) => [m.month, m.headcount]));
+  return (d) => (d < start || d > finish ? 0 : (byMonth.get(d.slice(0, 7)) ?? 0));
+}
+
+export interface PhaseWindowSpec {
+  phaseId: string;
+  name: string;
+  start: ISODate;
+  finish: ISODate;
+  note: string;
+}
+
+export interface RetiredReservation {
+  nodeKey: string;
+  name: string;
+  /** The entries the earlier seed wrote; a node whose entries still equal these was not edited. */
+  expected: EntryInput[];
+}
+
+export interface PoolForecast {
+  /** An existing root pool with this role is reused; otherwise one is created with `key`. */
+  role: string;
+  key: string;
+  name: string;
+  notes: string;
+  sortOrder: number;
+  /** Seed-owned date range: entries in it are replaced by the forecast. */
+  ownedFrom: ISODate;
+  ownedTo: ISODate;
+  valueOn: (d: ISODate) => number;
+}
+
+export interface SeedStaffingResult {
+  data: PlanData;
+  notes: string[];
+  changed: boolean;
 }
 
 const sameEntries = (a: EntryInput[], b: EntryInput[]) => {
@@ -107,74 +93,58 @@ const sameEntries = (a: EntryInput[], b: EntryInput[]) => {
   return JSON.stringify(a.map(key).sort()) === JSON.stringify(b.map(key).sort());
 };
 
-export interface PhasePlanResult {
-  data: PlanData;
-  /** One line per phase and for the pool, for logs. */
-  notes: string[];
-  changed: boolean;
-}
-
 /**
- * Apply phase staffing plans to a plan. Seed-owned reservation nodes are
- * identified by their stable keys. A reservation whose entries were changed
- * after seeding is preserved as edited; the pool is always re-derived from
- * the reservations actually present, within the plans' overall date range.
- * Existing phase windows that differ from the plan are preserved and the
- * reservation follows the stored window.
+ * Apply seed-owned staffing to a plan:
+ * - phase windows are set where missing (an operator-set window is kept);
+ * - reservations from an earlier seed are removed when still unedited, and
+ *   kept (with a note) when an operator changed them;
+ * - each forecast pool's entries inside its owned range are replaced by the
+ *   forecast; entries outside the range and other pools are untouched.
+ * The caller validates the result (capacity) through the normal plan mutation.
  */
-export function applyPhaseStaffing(input: PlanData, pool: NodeInput, plans: PhaseStaffing[]): PhasePlanResult {
+export function applySeedStaffing(input: PlanData, spec: { windows: PhaseWindowSpec[]; retire: RetiredReservation[]; pools: PoolForecast[] }): SeedStaffingResult {
   const data = structuredClone(input);
   const notes: string[] = [];
   const cal = projectResolver(data);
-  let from: ISODate | null = null;
-  let to: ISODate | null = null;
 
-  for (const p of plans) {
-    let start = p.start;
-    let finish = p.finish;
-    const win = data.phaseWindows.find((w) => w.phaseId === p.phaseId);
-    if (!win) {
-      data.phaseWindows.push({ phaseId: p.phaseId, start: p.start, finish: p.finish, note: "Start Work Date through PCO, per the Gray preliminary schedule 2026-10-15 (Contract Milestones)." });
-    } else if (win.start === null && win.finish === null) {
-      win.start = p.start;
-      win.finish = p.finish;
-    } else if (win.start !== p.start || win.finish !== p.finish) {
-      if (win.start && win.finish) {
-        start = win.start;
-        finish = win.finish;
-      }
-      notes.push(`${p.name}: existing phase window ${win.start ?? "?"}–${win.finish ?? "?"} differs from the schedule (${p.start}–${p.finish}); kept the existing window`);
-    }
+  for (const w of spec.windows) {
+    const win = data.phaseWindows.find((x) => x.phaseId === w.phaseId);
+    if (!win) data.phaseWindows.push({ phaseId: w.phaseId, start: w.start, finish: w.finish, note: w.note });
+    else if (win.start === null && win.finish === null) Object.assign(win, { start: w.start, finish: w.finish });
+    else if (win.start !== w.start || win.finish !== w.finish) notes.push(`${w.name}: existing phase window ${win.start ?? "?"}–${win.finish ?? "?"} differs from the schedule (${w.start}–${w.finish}); kept the existing window`);
+  }
 
-    const expected = windowEntries(p.nodeKey, start, finish, p.headcount, cal);
-    const node = data.nodes.find((n) => n.key === p.nodeKey);
-    const current = data.entries.filter((e) => e.nodeKey === p.nodeKey);
-    if (!node) {
-      data.nodes.push({ key: p.nodeKey, parentKey: pool.key, kind: "RESERVATION", name: p.name, role: p.role, phaseId: p.phaseId, areaId: null, systemId: null, activityKey: null, calendarKey: null, notes: p.notes, sortOrder: p.sortOrder });
-      data.entries.push(...expected);
-      notes.push(`${p.name}: ${p.headcount} planned installers, ${start} to ${finish} (created)`);
-    } else if (current.length === 0) {
-      data.entries.push(...expected);
-      notes.push(`${p.name}: ${p.headcount} planned installers, ${start} to ${finish} (staffing added)`);
-    } else if (sameEntries(current, expected)) {
-      notes.push(`${p.name}: ${p.headcount} planned installers, ${start} to ${finish} (unchanged)`);
+  for (const r of spec.retire) {
+    const node = data.nodes.find((n) => n.key === r.nodeKey);
+    if (!node) continue;
+    const entries = data.entries.filter((e) => e.nodeKey === r.nodeKey);
+    const hasChildren = data.nodes.some((n) => n.parentKey === r.nodeKey);
+    if (!hasChildren && (entries.length === 0 || sameEntries(entries, r.expected))) {
+      data.nodes = data.nodes.filter((n) => n.key !== r.nodeKey);
+      data.entries = data.entries.filter((e) => e.nodeKey !== r.nodeKey);
+      notes.push(`${r.name}: removed (superseded by the manpower forecast)`);
     } else {
-      notes.push(`${p.name}: reservation staffing was edited after seeding; left as edited`);
+      notes.push(`${r.name}: edited after seeding; kept as edited (it must fit within the forecast capacity)`);
     }
-    if (!from || start < from) from = start;
-    if (!to || finish > to) to = finish;
   }
 
-  if (from && to) {
-    const rangeFrom = startOfWeek(from);
-    const rangeTo = addDays(startOfWeek(to), 6);
-    const inRange = (e: EntryInput) => e.nodeKey === pool.key && e.kind !== "BLOCK" && e.date >= rangeFrom && e.date <= rangeTo;
-    const derived = derivedPoolEntries(data, pool.key, rangeFrom, rangeTo);
-    const currentPool = data.entries.filter(inRange);
-    if (!sameEntries(currentPool, derived)) {
-      data.entries = [...data.entries.filter((e) => !inRange(e)), ...derived];
-      notes.push(`${pool.name}: capacity ${rangeFrom} to ${rangeTo} set to the sum of active reservations`);
+  for (const p of spec.pools) {
+    let pool: NodeInput | undefined = data.nodes.filter((n) => n.kind === "POOL" && n.parentKey === null && n.role === p.role).sort((a, b) => a.sortOrder - b.sortOrder)[0];
+    if (!pool) {
+      pool = { key: p.key, parentKey: null, kind: "POOL", name: p.name, role: p.role, phaseId: null, areaId: null, systemId: null, activityKey: null, calendarKey: null, notes: p.notes, sortOrder: p.sortOrder };
+      data.nodes.push(pool);
+      notes.push(`${p.name}: workforce pool created`);
+    } else if (pool.notes !== p.notes && (pool.notes === null || pool.notes.startsWith("Planned capacity from") || pool.notes.trim() === "")) {
+      pool.notes = p.notes;
     }
+    const key = pool.key;
+    const owned = (e: EntryInput) => e.nodeKey === key && e.kind !== "BLOCK" && e.date >= p.ownedFrom && e.date <= p.ownedTo;
+    const desired = dailyEntries(key, p.valueOn, p.ownedFrom, p.ownedTo, cal);
+    if (!sameEntries(data.entries.filter(owned), desired)) {
+      data.entries = [...data.entries.filter((e) => !owned(e)), ...desired];
+      notes.push(`${p.name}: forecast applied ${p.ownedFrom} to ${p.ownedTo}`);
+    } else notes.push(`${p.name}: forecast unchanged`);
   }
+
   return { data, notes, changed: JSON.stringify([input.phaseWindows, input.nodes, input.entries]) !== JSON.stringify([data.phaseWindows, data.nodes, data.entries]) };
 }

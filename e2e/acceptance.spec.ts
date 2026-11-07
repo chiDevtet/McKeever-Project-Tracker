@@ -48,5 +48,7 @@ test("A03 on screen and A08 calendar acceleration with preview, cancel, and appl
   expect(await weekTotals(page, project.id)).toMatchObject({ "Installer hours": "320", "Project calendar hours": "40" });
   await (await previewSixTens()).getByRole("button", { name: /Apply/ }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  // The change saves in the background; navigating before it lands would abandon the save.
+  await expect(page.getByText(/Saved · revision \d+/)).toBeVisible();
   expect(await weekTotals(page, project.id)).toMatchObject({ "Peak installers onsite": "8", "Installer hours": "480", "Project calendar hours": "60" });
 });

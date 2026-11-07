@@ -1,0 +1,293 @@
+{
+  "schemaVersion": 1,
+  "classification": "contractor manpower forecast for planning; not a roster or minimum staffing",
+  "source": {
+    "key": "mne-manpower-loading-2026-11-06",
+    "title": "CMH139 Revised Manpower Loading (installation manpower plus ACE site safety support)",
+    "issuer": "McKeever & Niekamp Electric",
+    "issued": "2026-11-06",
+    "copy": "ACE Electric coordination copy; no labor hours, rates or costs",
+    "path": "fixtures/source/CMH139_Manpower_Loading_2026-11-06.pdf",
+    "pages": {
+      "installation": 1,
+      "revisedLoading": 2
+    }
+  },
+  "period": {
+    "start": "2027-04-01",
+    "finish": "2028-03-01"
+  },
+  "basis": "high",
+  "basisNote": "Weekly headcount uses the upper figure of each monthly range (the forecast's 'up to' values), applied to every working day of the month. The source says ranges reflect intermittent activity, upper installation and support figures need not coincide daily, and the combined 16 is a short-duration potential peak, so this is a conservative planning envelope, not a commitment.",
+  "planningNotes": [
+    "Installation scope unchanged; crew sequencing refined to reduce overlapping peaks.",
+    "Prior Nov 4 preliminary loading showed up to 13; updated installation peak is up to 12.",
+    "Working leads are included in the counts.",
+    "Ground support (ACE site safety: Ladder Last Protocol, lifts, barricaded zones, approved cutting / prep) is incremental to installation; typically 2-3, a fourth during brief peak overlaps.",
+    "Off-site prefabrication at the MNE shop may reduce on-site staffing compared with these peaks.",
+    "Access, drywall readiness, area releases, lift rules and ACE coordination may shift loading."
+  ],
+  "pools": [
+    {
+      "key": "cmh139-installer-pool",
+      "role": "Installer",
+      "name": "Installers \u2014 shared workforce",
+      "series": "installation",
+      "ownedThrough": "2028-04-30"
+    },
+    {
+      "key": "cmh139-ground-support",
+      "role": "Ground support",
+      "name": "Ground support \u2014 ACE site safety",
+      "series": "support",
+      "ownedThrough": "2028-03-01"
+    }
+  ],
+  "supersedes": {
+    "description": "The 30 Oct 2026 seed reserved 8 planned installers per phase over each phase window. Those reservations are removed when unedited; the installer pool through 30 Apr 2028 (the last phase window) is replaced by this forecast.",
+    "reservationKey": "cmh139-{phaseKey}-installers",
+    "headcount": 8
+  },
+  "months": [
+    {
+      "month": "2027-04",
+      "installation": {
+        "text": "Up to 6",
+        "low": null,
+        "high": 6
+      },
+      "support": {
+        "text": "Up to 2",
+        "low": null,
+        "high": 2
+      },
+      "combined": {
+        "text": "Up to 8",
+        "low": null,
+        "high": 8
+      },
+      "activity": "Electrical rooms / ERRCS",
+      "installationWorkfront": "ERRCS; electrical rooms, phases 1-2"
+    },
+    {
+      "month": "2027-05",
+      "installation": {
+        "text": "Up to 4",
+        "low": null,
+        "high": 4
+      },
+      "support": {
+        "text": "Up to 2",
+        "low": null,
+        "high": 2
+      },
+      "combined": {
+        "text": "Up to 6",
+        "low": null,
+        "high": 6
+      },
+      "activity": "Electrical rooms",
+      "installationWorkfront": "Electrical rooms; early infrastructure"
+    },
+    {
+      "month": "2027-06",
+      "installation": {
+        "text": "8-9",
+        "low": 8,
+        "high": 9
+      },
+      "support": {
+        "text": "2-3",
+        "low": 2,
+        "high": 3
+      },
+      "combined": {
+        "text": "10-12",
+        "low": 10,
+        "high": 12
+      },
+      "activity": "Offices / Phase 1",
+      "installationWorkfront": "Office rough-in; Phase 1 FA / VESDA"
+    },
+    {
+      "month": "2027-07",
+      "installation": {
+        "text": "9-12",
+        "low": 9,
+        "high": 12
+      },
+      "support": {
+        "text": "2-3",
+        "low": 2,
+        "high": 3
+      },
+      "combined": {
+        "text": "11-15",
+        "low": 11,
+        "high": 15
+      },
+      "activity": "Phase 2 / overlap",
+      "installationWorkfront": "Phase 2 FA / VESDA; devices; risers"
+    },
+    {
+      "month": "2027-08",
+      "installation": {
+        "text": "9-12",
+        "low": 9,
+        "high": 12
+      },
+      "support": {
+        "text": "2-4",
+        "low": 2,
+        "high": 4
+      },
+      "combined": {
+        "text": "11-16",
+        "low": 11,
+        "high": 16
+      },
+      "activity": "Phases 3-4 / offices",
+      "installationWorkfront": "Phases 3-4 FA / VESDA; office devices"
+    },
+    {
+      "month": "2027-09",
+      "installation": {
+        "text": "6-8",
+        "low": 6,
+        "high": 8
+      },
+      "support": {
+        "text": "2-3",
+        "low": 2,
+        "high": 3
+      },
+      "combined": {
+        "text": "8-11",
+        "low": 8,
+        "high": 11
+      },
+      "activity": "Phases 4-5 / devices",
+      "installationWorkfront": "Phases 4-5; prior-phase devices"
+    },
+    {
+      "month": "2027-10",
+      "installation": {
+        "text": "6-8",
+        "low": 6,
+        "high": 8
+      },
+      "support": {
+        "text": "2-3",
+        "low": 2,
+        "high": 3
+      },
+      "combined": {
+        "text": "8-11",
+        "low": 8,
+        "high": 11
+      },
+      "activity": "Phases 5-6 / devices",
+      "installationWorkfront": "Phases 5-6; prior-phase devices"
+    },
+    {
+      "month": "2027-11",
+      "installation": {
+        "text": "3-8",
+        "low": 3,
+        "high": 8
+      },
+      "support": {
+        "text": "1-2",
+        "low": 1,
+        "high": 2
+      },
+      "combined": {
+        "text": "4-10",
+        "low": 4,
+        "high": 10
+      },
+      "activity": "Phase 6 / devices",
+      "installationWorkfront": "Phase 6; device installation"
+    },
+    {
+      "month": "2027-12",
+      "installation": {
+        "text": "Up to 3",
+        "low": null,
+        "high": 3
+      },
+      "support": {
+        "text": "Up to 1",
+        "low": null,
+        "high": 1
+      },
+      "combined": {
+        "text": "Up to 4",
+        "low": null,
+        "high": 4
+      },
+      "activity": "Test / program",
+      "installationWorkfront": "Terminations; testing / programming"
+    },
+    {
+      "month": "2028-01",
+      "installation": {
+        "text": "Up to 3",
+        "low": null,
+        "high": 3
+      },
+      "support": {
+        "text": "Up to 1",
+        "low": null,
+        "high": 1
+      },
+      "combined": {
+        "text": "Up to 4",
+        "low": null,
+        "high": 4
+      },
+      "activity": "Testing / programming",
+      "installationWorkfront": "Testing; panels; programming"
+    },
+    {
+      "month": "2028-02",
+      "installation": {
+        "text": "Up to 3",
+        "low": null,
+        "high": 3
+      },
+      "support": {
+        "text": "Up to 1",
+        "low": null,
+        "high": 1
+      },
+      "combined": {
+        "text": "Up to 4",
+        "low": null,
+        "high": 4
+      },
+      "activity": "Testing / closeout",
+      "installationWorkfront": "Testing; programming; deficiencies"
+    },
+    {
+      "month": "2028-03",
+      "installation": {
+        "text": "Up to 3",
+        "low": null,
+        "high": 3
+      },
+      "support": {
+        "text": "Up to 1",
+        "low": null,
+        "high": 1
+      },
+      "combined": {
+        "text": "Up to 4",
+        "low": null,
+        "high": 4
+      },
+      "activity": "Finals through Mar 1",
+      "installationWorkfront": "Final testing / closeout through Mar 1"
+    }
+  ]
+}

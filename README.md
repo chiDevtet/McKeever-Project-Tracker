@@ -107,17 +107,40 @@ Set `BETTER_AUTH_SECRET` in `.env` (for example from `openssl rand -base64 32`),
 pnpm db:migrate && pnpm db:seed
 ```
 
-The seed is idempotent and safe to re-run. It creates (or completes) the workspace and CMH139 with its systems (fire alarm, VESDA, emergency responder radio, cellular boosting; ERRS/ERRC kept as source aliases), all six phases with their ROMP pairs, milestone **candidates** with their sources (including the Phase 1 NEA disagreement between the 16 Oct and 23 Oct correspondence, and PCO from the schedule), Tyler Sisia as PM candidate and the foreman as TBD (no assignment dates), and attaches the original schedule PDF as a document without importing it. From `fixtures/seed/cmh139.phase-plan.json` it sets each phase window (Start Work Date through PCO, from the schedule's Contract Milestones on pages 1–3) and a planned reservation of **8 installers per phase** over exactly that window, with the shared pool's capacity derived as the sum of the active phase reservations. Planned headcount is capacity, not named employees; no progress or names are invented.
+The seed is idempotent and safe to re-run. It creates (or completes) the workspace and CMH139 with its systems (fire alarm, VESDA, emergency responder radio, cellular boosting; ERRS/ERRC kept as source aliases), all six phases with their ROMP pairs, milestone **candidates** with their sources (including the Phase 1 NEA disagreement between the 16 Oct and 23 Oct correspondence, and PCO from the schedule), Tyler Sisia as PM candidate and the foreman as TBD (no assignment dates), and attaches the original schedule PDF as a document without importing it. From `fixtures/seed/cmh139.phase-plan.json` it sets each phase window (Start Work Date through PCO, from the schedule's Contract Milestones on pages 1–3). Staffing comes from `fixtures/seed/cmh139.manpower-forecast.json`, a transcription of MNE's **revised manpower loading of 6 Nov 2026** (the ACE coordination copy, kept in `fixtures/source/` and attached as a project document): the **Installers — shared workforce** pool gets the installation forecast (working leads included) and a separate **Ground support — ACE site safety** pool (role "Ground support") gets ACE's site-safety support, each at the **upper figure of every monthly range** on every working day of that month, 1 Apr 2027 to 1 Mar 2028:
+
+| Month | Installation | Ground support | Combined |
+| --- | --- | --- | --- |
+| Apr 2027 | Up to 6 → **6** | Up to 2 → **2** | up to 8 |
+| May 2027 | Up to 4 → **4** | Up to 2 → **2** | up to 6 |
+| Jun 2027 | 8-9 → **9** | 2-3 → **3** | up to 12 |
+| Jul 2027 | 9-12 → **12** | 2-3 → **3** | up to 15 |
+| Aug 2027 | 9-12 → **12** | 2-4 → **4** | up to 16 |
+| Sep 2027 | 6-8 → **8** | 2-3 → **3** | up to 11 |
+| Oct 2027 | 6-8 → **8** | 2-3 → **3** | up to 11 |
+| Nov 2027 | 3-8 → **8** | 1-2 → **2** | up to 10 |
+| Dec 2027 | Up to 3 → **3** | Up to 1 → **1** | up to 4 |
+| Jan 2028 | Up to 3 → **3** | Up to 1 → **1** | up to 4 |
+| Feb 2028 | Up to 3 → **3** | Up to 1 → **1** | up to 4 |
+| Mar 2028 | Up to 3 → **3** | Up to 1 → **1** | up to 4 |
+
+The upper figures are a conservative planning envelope: the source says ranges reflect intermittent activity, that peak installation and peak support need not coincide on the same day, and that the combined 16 in August is a short-duration potential peak. Ground support counts toward onsite totals in the dashboard and reports; filter by role to see installation alone. Planned headcount is capacity, not named employees; no progress or names are invented.
 
 ### Reconciling an existing database
 
-Databases seeded by an earlier version may show fewer phases or no phase staffing. Re-running the seed completes them in place; it never deletes or recreates the project:
+Databases seeded by an earlier version may show fewer phases, no phase staffing, or the earlier placeholder of 8 planned installers per phase. Re-running the seed completes them in place; it never deletes or recreates the project:
 
 ```bash
 pnpm db:migrate && pnpm db:seed
 ```
 
-Back up first if the database holds real work (`ENV_FILE=.env scripts/backup.sh`). The reconciliation adds missing phases, ROMP areas and memberships, milestones, and source values without duplicates; it never changes milestone dates or review state, actual progress, imported source versions, or people. Phase windows already set by an operator are kept (and logged), and a seed reservation whose staffing was edited is left as edited. Inside the phase-plan date range (17 May 2027–30 Apr 2028) the pool's weekly capacity is re-derived from the reservations it supplies, including any other crews under the pool, so hand-entered pool capacity in that range is replaced by the derived totals. Staffing changes are validated like any edit and recorded as a new working-plan revision ("Seeded phase windows and planned installer headcount"). The log lists the six phases and each phase's headcount and window; a second run reports "already up to date".
+Back up first if the database holds real work (`ENV_FILE=.env scripts/backup.sh`). The reconciliation adds missing phases, ROMP areas and memberships, milestones, and source values without duplicates; it never changes milestone dates or review state, actual progress, imported source versions, or people. Phase windows already set by an operator are kept (and logged).
+
+Staffing follows the 6 Nov 2026 manpower forecast:
+
+- The earlier `Phase N installers (planned)` reservations are removed when they are still exactly as seeded. One an operator edited is kept as edited and logged; it must fit within the forecast pool, otherwise the seed stops with the over-capacity message and changes nothing, so you can reduce or move it and run the seed again.
+- The installer pool's daily and weekly entries from 1 Apr 2027 through 30 Apr 2028 (the old phase-derived range) are replaced by the forecast, so capacity entered by hand in that range is replaced. Entries outside it, block entries, and other crews are untouched. The ground support pool is created if missing and its entries from 1 Apr 2027 through 1 Mar 2028 are set from the forecast.
+- Changes are validated like any edit and recorded as one working-plan revision ("Applied the 2026-11-06 manpower forecast …"). The log lists what was removed or kept and each month's range and planned figure; a second run reports "already up to date".
 
 Optional illustrative training data, clearly separate from CMH139 (projects `DEMO-A` and `DEMO-B`; requires an administrator to exist):
 

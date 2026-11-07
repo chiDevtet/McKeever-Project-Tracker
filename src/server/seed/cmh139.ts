@@ -4,7 +4,8 @@ import path from "node:path";
 import { z } from "zod";
 import { defaultCalendarDefinition, defaultWeekPattern } from "@/domain/calendar";
 import { dateFromDb, dateToDb } from "@/domain/dates";
-import { applyPhaseStaffing, type PhaseStaffing } from "@/domain/phase-plan";
+import { applySeedStaffing, monthlyValue, windowEntries, type PoolForecast } from "@/domain/phase-plan";
+import { projectResolver } from "@/domain/staffing";
 import type { Prisma } from "@/generated/prisma/client";
 import { audit } from "@/server/audit";
 import { prisma, type Tx } from "@/server/db";
@@ -63,7 +64,21 @@ const phasePlanSchema = z.object({
       scheduleMilestones: z.array(z.object({ code: z.string(), externalId: z.string(), scheduleLabel: z.string(), date: isoDate, page: z.number() })),
     }),
   ),
-  workforcePlans: z.array(z.object({ phaseKey: z.string(), role: z.string(), plannedHeadcount: z.number().int().min(1), window: z.literal("phase") })),
+  // Superseded by the manpower forecast; kept empty.
+  workforcePlans: z.array(z.unknown()).length(0),
+});
+
+const range = z.object({ text: z.string(), low: z.number().int().min(0).nullable(), high: z.number().int().min(0) });
+const forecastSchema = z.object({
+  schemaVersion: z.literal(1),
+  source: z.object({ key: z.string(), title: z.string(), issuer: z.string(), issued: isoDate, copy: z.string(), path: z.string(), pages: z.record(z.string(), z.number()) }),
+  period: z.object({ start: isoDate, finish: isoDate }),
+  basis: z.literal("high"),
+  basisNote: z.string(),
+  planningNotes: z.array(z.string()),
+  pools: z.array(z.object({ key: z.string(), role: z.string(), name: z.string(), series: z.enum(["installation", "support"]), ownedThrough: isoDate })),
+  supersedes: z.object({ description: z.string(), reservationKey: z.string(), headcount: z.number().int() }),
+  months: z.array(z.object({ month: z.string().regex(/^\d{4}-\d{2}$/), installation: range, support: range, combined: range, activity: z.string(), installationWorkfront: z.string() })),
 });
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -235,6 +250,8 @@ async function reconcileStructure(tx: Tx, seed: Seed, plan: PhasePlan, workspace
   // Milestone codes used by the schedule (PCO) are offered when adding milestones.
   const ws = await tx.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
   if (!ws.milestoneCodes.includes("PCO")) await tx.workspace.update({ where: { id: workspaceId }, data: { milestoneCodes: [...ws.milestoneCodes, "PCO"] } });
+  // The manpower forecast plans ACE site-safety ground support as its own workforce role.
+  if (!ws.installerRoles.includes("Ground support")) await tx.workspace.update({ where: { id: workspaceId }, data: { installerRoles: [...ws.installerRoles, "Ground support"] } });
 
   const added = Object.entries(counts).filter(([, n]) => n > 0);
   if (added.length) {
@@ -247,6 +264,7 @@ async function reconcileStructure(tx: Tx, seed: Seed, plan: PhasePlan, workspace
 export async function seedCmh139(repoRoot: string, opts: { attachSourcePdf?: boolean } = {}) {
   const seed = seedSchema.parse(JSON.parse(await readFile(path.join(repoRoot, "fixtures/seed/cmh139.preliminary.json"), "utf8")));
   const plan = phasePlanSchema.parse(JSON.parse(await readFile(path.join(repoRoot, "fixtures/seed/cmh139.phase-plan.json"), "utf8")));
+  const forecast = forecastSchema.parse(JSON.parse(await readFile(path.join(repoRoot, "fixtures/seed/cmh139.manpower-forecast.json"), "utf8")));
   const log: string[] = [];
 
   let ws = await prisma.workspace.findFirst({ orderBy: { createdAt: "asc" } });
@@ -260,46 +278,57 @@ export async function seedCmh139(repoRoot: string, opts: { attachSourcePdf?: boo
   const phases = await prisma.phase.findMany({ where: { projectId: s.projectId }, orderBy: { sortOrder: "asc" }, select: { name: true } });
   log.push(`${phases.length} phases: ${phases.map((p) => p.name).join(", ")}`);
 
-  // Planned installer headcount per phase over its exact window, nested under the shared pool.
+  // Phase windows from the schedule; staffing from the MNE manpower forecast (installation and ground support pools).
   const data = await loadPlanData(prisma, s.workingId);
-  const pool = data.nodes.find((n) => n.key === s.poolKey)!;
-  const staffing: PhaseStaffing[] = plan.workforcePlans.map((w, i) => {
-    const ph = plan.phases.find((p) => p.key === w.phaseKey)!;
-    return {
-      phaseId: s.phaseIds.get(w.phaseKey)!,
-      nodeKey: phaseReservationKey(w.phaseKey),
-      name: `${ph.name} installers (planned)`,
-      notes: `Planned capacity: ${w.plannedHeadcount} installers from the Start Work Date through PCO (${ph.window.start} to ${ph.window.finish}), per the ${plan.source.label} Contract Milestones. Headcount, not named people.`,
-      role: w.role,
-      headcount: w.plannedHeadcount,
-      start: ph.window.start,
-      finish: ph.window.finish,
-      sortOrder: i,
-    };
+  const cal = projectResolver(data);
+  const months = (series: "installation" | "support") => forecast.months.map((m) => ({ month: m.month, headcount: m[series].high }));
+  const fmt = (series: "installation" | "support") => forecast.months.map((m) => `${m.month} ${m[series].text}`).join(", ");
+  const pools: PoolForecast[] = forecast.pools.map((p, i) => ({
+    role: p.role,
+    key: p.key,
+    name: p.name,
+    sortOrder: i,
+    ownedFrom: forecast.period.start,
+    ownedTo: p.ownedThrough,
+    valueOn: monthlyValue(months(p.series), forecast.period.start, forecast.period.finish),
+    notes: `Planned capacity from the ${forecast.source.issuer} manpower forecast of ${forecast.source.issued} (${p.series === "installation" ? "installation, working leads included" : "ACE site-safety ground support, incremental to installation"}), ${forecast.period.start} to ${forecast.period.finish}, at the upper figure of each monthly range: ${fmt(p.series)}. Ranges reflect intermittent activity; this is a planning envelope, not a roster or minimum.`,
+  }));
+  const windows = plan.phases.map((ph) => ({ phaseId: s.phaseIds.get(ph.key)!, name: ph.name, start: ph.window.start, finish: ph.window.finish, note: `Start Work Date through PCO, per the ${plan.source.label} (Contract Milestones).` }));
+  const retire = plan.phases.map((ph) => {
+    const key = forecast.supersedes.reservationKey.replace("{phaseKey}", ph.key);
+    return { nodeKey: key, name: `${ph.name} installers (planned)`, expected: windowEntries(key, ph.window.start, ph.window.finish, forecast.supersedes.headcount, cal) };
   });
-  const result = applyPhaseStaffing(data, pool, staffing);
+  const result = applySeedStaffing(data, { windows, retire, pools });
   if (result.changed) {
-    const r = await mutatePlan(null, s.workingId, data.plan.revision, () => result.data, {
-      kind: "SEED",
-      summary: `Seeded phase windows and planned installer headcount for ${staffing.length} phases`,
-      workspaceId,
-    });
-    log.push(`Working plan updated to revision ${r.revision}`);
-  } else log.push("Phase windows and planned staffing already up to date");
+    try {
+      const r = await mutatePlan(null, s.workingId, data.plan.revision, () => result.data, {
+        kind: "SEED",
+        summary: `Applied the ${forecast.source.issued} manpower forecast (installation up to ${Math.max(...months("installation").map((m) => m.headcount))}, ground support up to ${Math.max(...months("support").map((m) => m.headcount))}) and schedule phase windows`,
+        workspaceId,
+      });
+      log.push(`Working plan updated to revision ${r.revision}`);
+    } catch (err) {
+      throw new Error(`CMH139 staffing was not changed: ${err instanceof Error ? err.message : String(err)}. Reservations under a pool must fit within the forecast; adjust them and run the seed again.`);
+    }
+  } else log.push("Phase windows and forecast staffing already up to date");
   for (const n of result.notes) log.push(n);
+  for (const m of forecast.months) log.push(`  ${m.month}: installation ${m.installation.text} → ${m.installation.high}, ground support ${m.support.text} → ${m.support.high} (combined up to ${m.combined.high}; ${m.activity})`);
 
   if (opts.attachSourcePdf !== false) {
-    const pdf = seed.sources.find((x) => x.path);
-    if (pdf?.path) {
-      const bytes = new Uint8Array(await readFile(path.join(repoRoot, pdf.path)));
+    const docs = [
+      { path: seed.sources.find((x) => x.path)?.path, kind: "SOURCE_SCHEDULE" as const, filename: "2026.10.15 AWS CMH139 Preliminary Schedule.pdf", title: "2026.10.15 AWS CMH139 Preliminary Schedule (59 pages)", category: "SCHEDULE", notes: "Original construction schedule. Import it from the Imports tab to review activities." },
+      { path: forecast.source.path, kind: "ATTACHMENT" as const, filename: "CMH139 Manpower Loading 2026-11-06.pdf", title: "CMH139 revised manpower loading, 6 Nov 2026 (ACE coordination copy)", category: "CORRESPONDENCE", notes: "MNE installation manpower and ACE site-safety support forecast, Apr 2027 to Mar 2028. Seeded as pool capacity at the upper figure of each monthly range." },
+    ];
+    for (const d of docs) {
+      if (!d.path) continue;
+      const bytes = new Uint8Array(await readFile(path.join(repoRoot, d.path)));
       const hash = sha256(bytes);
-      if (!(await prisma.storedFile.findFirst({ where: { projectId: s.projectId, sha256: hash } }))) {
-        await prisma.$transaction(async (tx) => {
-          const file = await storeFile(tx, { workspaceId, projectId: s.projectId, kind: "SOURCE_SCHEDULE", filename: "2026.10.15 AWS CMH139 Preliminary Schedule.pdf", contentType: "application/pdf", bytes, immutable: true, createdById: null });
-          await tx.projectDocument.create({ data: { projectId: s.projectId, fileId: file.id, title: "2026.10.15 AWS CMH139 Preliminary Schedule (59 pages)", category: "SCHEDULE", notes: `Original construction schedule. SHA-256 ${hash}. Import it from the Imports tab to review activities.` } });
-        });
-        log.push("Attached the source schedule PDF as a project document (not imported)");
-      }
+      if (await prisma.storedFile.findFirst({ where: { projectId: s.projectId, sha256: hash } })) continue;
+      await prisma.$transaction(async (tx) => {
+        const file = await storeFile(tx, { workspaceId, projectId: s.projectId, kind: d.kind, filename: d.filename, contentType: "application/pdf", bytes, immutable: true, createdById: null });
+        await tx.projectDocument.create({ data: { projectId: s.projectId, fileId: file.id, title: d.title, category: d.category, notes: `${d.notes} SHA-256 ${hash}.` } });
+      });
+      log.push(`Attached ${d.title} as a project document`);
     }
   }
   return { projectId: s.projectId, created: s.created, log };
