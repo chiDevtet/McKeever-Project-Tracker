@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "classification": "schedule-derived phase windows and planned capacity for operator review",
+  "classification": "schedule-derived phase windows and milestones for operator review",
   "source": {
     "key": "gray-pdf-2026-10-15",
     "label": "Gray preliminary schedule 2026-10-15",
@@ -16,7 +16,7 @@
     "Each phase window runs from the phase Start Work Date (Gray Early Start Work Date for Phases 3-6) through the phase PCO milestone, as printed in the Contract Milestones section.",
     "Phase FEA appears in the schedule only for Phase 1; no FEA is given for Phases 2-6.",
     "Phase 6 PFHO and PCO are both 28 Apr 2028.",
-    "Planned headcount is capacity for planning, not named or identified employees."
+    "Staffing comes from fixtures/seed/cmh139.manpower-forecast.json (MNE manpower loading, 6 Nov 2026), which superseded the earlier 8-installers-per-phase placeholder."
   ],
   "phases": [
     {
@@ -194,42 +194,5 @@
       ]
     }
   ],
-  "workforcePlans": [
-    {
-      "phaseKey": "phase-1",
-      "role": "Installer",
-      "plannedHeadcount": 8,
-      "window": "phase"
-    },
-    {
-      "phaseKey": "phase-2",
-      "role": "Installer",
-      "plannedHeadcount": 8,
-      "window": "phase"
-    },
-    {
-      "phaseKey": "phase-3",
-      "role": "Installer",
-      "plannedHeadcount": 8,
-      "window": "phase"
-    },
-    {
-      "phaseKey": "phase-4",
-      "role": "Installer",
-      "plannedHeadcount": 8,
-      "window": "phase"
-    },
-    {
-      "phaseKey": "phase-5",
-      "role": "Installer",
-      "plannedHeadcount": 8,
-      "window": "phase"
-    },
-    {
-      "phaseKey": "phase-6",
-      "role": "Installer",
-      "plannedHeadcount": 8,
-      "window": "phase"
-    }
-  ]
+  "workforcePlans": []
 }

@@ -51,6 +51,12 @@ Details: [`ACCEPTANCE_EVIDENCE.md`](ACCEPTANCE_EVIDENCE.md).
 - `pnpm db:seed` now reconciles CMH139 in place: six phases with ROMPs, schedule phase windows (Start Work Date → PCO), PCO candidates, and 8 planned installers per phase with pool capacity derived from the reservations. See README › Reconciling an existing database.
 - Checks: `pnpm check` (typecheck, lint, 42 unit tests), `pnpm test:integration` (6 files, 35 tests, including `cmh139-seed.test.ts`), `pnpm test:e2e` (16 tests including `theme.spec.ts`), `pnpm build`.
 
+## Change: CMH139 staffing from the revised manpower loading (7 Nov 2026)
+
+- `pnpm db:seed` now plans CMH139 staffing from MNE's revised manpower loading of 6 Nov 2026 (`fixtures/seed/cmh139.manpower-forecast.json`, PDF in `fixtures/source/`, attached as a project document): installation on the installer pool and ACE site-safety support on a new "Ground support" pool, at the upper figure of each monthly range, Apr 2027 to 1 Mar 2028 (peak 12 installers + 4 support in Aug 2027).
+- The earlier 8-per-phase reservations are removed when unedited; edited ones are kept and must fit the forecast. Phase windows and milestones are unchanged. See README › Reconciling an existing database and DECISIONS C07–C11.
+- Checks: `pnpm check` (typecheck, lint, 42 unit tests), `pnpm test:integration` (6 files, 38 tests), `pnpm test:e2e` (16 tests), `pnpm build`. The A08 acceptance test now waits for the calendar save before navigating (it could abandon the background save).
+
 ## Blockers
 
 _None._ Cloud deployment (VPS, DNS, Neon, R2, SMTP) is configuration only and was not performed from this repository.

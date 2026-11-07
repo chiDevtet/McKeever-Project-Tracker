@@ -13,19 +13,24 @@ async function showWeek(page: import("@playwright/test").Page, week: string) {
   }).toPass({ timeout: 30_000 });
 }
 
-test("CMH139 shows the seeded phase reservations and pool capacity in the grid", async ({ page }) => {
+test("CMH139 shows the seeded manpower forecast as installer and ground support capacity", async ({ page }) => {
   await signIn(page, ADMIN);
   await openProject(page, "CMH139", "manpower");
-  await showWeek(page, "2027-05-31");
-  // Phases 1-3 are active the week of 31 May 2027: 3 x 8 planned installers.
-  await expect(cell(page, "2027-05-31")).toHaveText("24");
-  for (const n of [1, 2, 3, 4, 5, 6]) await expect(page.getByText(`Phase ${n} installers (planned)`).first()).toBeVisible();
+  await showWeek(page, "2027-07-05");
+  // July 2027 in the 6 Nov 2026 forecast: installation 9-12 and ground support 2-3, planned at the upper figure.
+  const row = (key: string, week: string) => page.locator(`[data-cell="node:${key}|${week}"]`);
+  await expect(row("cmh139-installer-pool", "2027-07-05")).toHaveText("12");
+  await expect(row("cmh139-ground-support", "2027-07-05")).toHaveText("3");
+  // August: up to 12 + 4, the forecast's short-duration combined peak of 16.
+  await expect(row("cmh139-ground-support", "2027-08-02")).toHaveText("4");
+  await expect(page.getByText("Ground support — ACE site safety").first()).toBeVisible();
+  await expect(page.getByText(/Phase \d installers \(planned\)/)).toHaveCount(0);
 });
 
 test("grid edits save with visible status, persist on reload, and reject fractional people", async ({ page }) => {
   await signIn(page, ADMIN);
   await openProject(page, "CMH139", "manpower");
-  // Weeks after the last phase window (28 Apr 2028), where the pool has no reservations to supply.
+  // Weeks after the seed-owned forecast range (through 30 Apr 2028), where the pool has nothing scheduled.
   await showWeek(page, "2028-05-08");
   await cell(page, "2028-05-08").click();
   await page.keyboard.type("8");

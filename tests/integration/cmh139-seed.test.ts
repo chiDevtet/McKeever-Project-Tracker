@@ -1,11 +1,13 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-import { addDays, dateFromDb, eachDay, startOfWeek } from "@/domain/dates";
+import { dateFromDb, eachDay } from "@/domain/dates";
 import { checkCapacity, buildTree } from "@/domain/capacity";
+import { dailyEntries, windowEntries } from "@/domain/phase-plan";
 import { expandAllNodes, projectResolver } from "@/domain/staffing";
 import type { PlanData } from "@/domain/plan";
 import { prisma } from "@/server/db";
-import { loadPlanData } from "@/server/plan-store";
+import { loadPlanData, mutatePlan } from "@/server/plan-store";
 import { CMH139_POOL_KEY, phaseReservationKey, seedCmh139 } from "@/server/seed/cmh139";
 
 const ROOT = path.resolve(".");
@@ -18,6 +20,31 @@ const WINDOWS: Record<string, [string, string, number[]]> = {
   "Phase 5": ["2027-07-23", "2028-04-14", [9, 11]],
   "Phase 6": ["2027-08-27", "2028-04-28", [10, 12]],
 };
+
+interface Range {
+  text: string;
+  low: number | null;
+  high: number;
+}
+const FORECAST = JSON.parse(readFileSync(path.join(ROOT, "fixtures/seed/cmh139.manpower-forecast.json"), "utf8")) as { months: { month: string; installation: Range; support: Range; combined: Range }[] };
+/** Upper figure of each monthly range, as read from the 6 Nov 2026 forecast. */
+const HIGHS: Record<string, [number, number]> = {
+  "2027-04": [6, 2],
+  "2027-05": [4, 2],
+  "2027-06": [9, 3],
+  "2027-07": [12, 3],
+  "2027-08": [12, 4],
+  "2027-09": [8, 3],
+  "2027-10": [8, 3],
+  "2027-11": [8, 2],
+  "2027-12": [3, 1],
+  "2028-01": [3, 1],
+  "2028-02": [3, 1],
+  "2028-03": [3, 1],
+};
+const START = "2027-04-01";
+const FINISH = "2028-03-01";
+const GROUND_KEY = "cmh139-ground-support";
 
 async function project() {
   return prisma.project.findFirstOrThrow({ where: { code: "CMH139" } });
@@ -47,46 +74,73 @@ async function counts(projectId: string) {
   return { phases, areas, memberships, milestones, values, versions, nodes, entries, people, leaders, files };
 }
 
-/** Planned installers per working day from the expanded reservation blocks. */
+/** Planned headcount per working day from a node's expanded blocks. */
 function headcountOn(data: PlanData, nodeKey: string): Map<string, number> {
   const out = new Map<string, number>();
-  for (const b of expandAllNodes(data).get(nodeKey) ?? []) out.set(b.shiftDate, Math.max(out.get(b.shiftDate) ?? 0, b.headcount));
+  for (const b of expandAllNodes(data).get(nodeKey) ?? []) out.set(b.shiftDate, (out.get(b.shiftDate) ?? 0) + b.headcount);
   return out;
 }
 
+const installerPool = (data: PlanData) => data.nodes.find((n) => n.kind === "POOL" && n.parentKey === null && n.role === "Installer")!;
+
 function checkStaffing(data: PlanData) {
   const cal = projectResolver(data);
-  const pool = data.nodes.find((n) => n.kind === "POOL" && n.role === "Installer")!;
-  const phaseNodes = data.phases.map((ph) => data.nodes.filter((n) => n.phaseId === ph.id && n.parentKey === pool.key));
-  // Exactly one installer reservation per phase, under the shared pool.
-  for (const list of phaseNodes) expect(list).toHaveLength(1);
-  const totals = new Map<string, number>();
-  for (const ph of data.phases) {
-    const [start, finish] = WINDOWS[ph.name];
-    const node = data.nodes.find((n) => n.phaseId === ph.id && n.parentKey === pool.key)!;
-    const days = headcountOn(data, node.key);
-    // 8 on every working day of the exact window, nothing outside it.
-    for (const d of eachDay(startOfWeek(start), addDays(startOfWeek(finish), 6))) {
-      const expected = d >= start && d <= finish && cal.isWorkingDay(d) ? 8 : 0;
-      expect(days.get(d) ?? 0, `${ph.name} ${d}`).toBe(expected);
-      if (expected) totals.set(d, (totals.get(d) ?? 0) + 8);
-    }
+  const pool = installerPool(data);
+  const ground = data.nodes.find((n) => n.kind === "POOL" && n.parentKey === null && n.role === "Ground support");
+  expect(pool.key).toBe(CMH139_POOL_KEY);
+  expect(ground).toMatchObject({ key: GROUND_KEY, name: "Ground support — ACE site safety" });
+  const installers = headcountOn(data, pool.key);
+  const support = headcountOn(data, GROUND_KEY);
+  // The upper figure on every working day of each forecast month; nothing outside the period
+  // (the installer pool is seed-owned through 30 Apr 2028, so the earlier phase capacity is gone).
+  for (const d of eachDay("2027-03-01", "2028-05-31")) {
+    const [inst, sup] = d >= START && d <= FINISH && cal.isWorkingDay(d) ? HIGHS[d.slice(0, 7)] : [0, 0];
+    expect(installers.get(d) ?? 0, `installers ${d}`).toBe(inst);
+    expect(support.get(d) ?? 0, `ground support ${d}`).toBe(sup);
   }
-  // The pool supplies exactly the sum of active phase reservations each day.
-  const poolDays = headcountOn(data, pool.key);
-  for (const [d, total] of totals) expect(poolDays.get(d), `pool ${d}`).toBe(total);
-  expect(poolDays.get("2027-05-20")).toBe(8);
-  expect(poolDays.get("2027-06-01")).toBe(24);
-  expect(poolDays.get("2027-09-01")).toBe(48);
-  expect(poolDays.get("2028-04-10")).toBe(16);
-  expect(poolDays.get("2028-04-20")).toBe(8);
+  expect(installers.get("2027-07-15")).toBe(12);
+  expect(support.get("2027-08-16")).toBe(4);
+  expect(installers.get("2028-03-01")).toBe(3);
+  expect(installers.get("2028-03-02")).toBeUndefined();
   expect(checkCapacity(data, expandAllNodes(data), buildTree(data.nodes))).toEqual([]);
+}
+
+/** The state the 30 Oct 2026 seed left: 8 planned installers per phase, a pool equal to their sum, no ground support pool. */
+function earlierSeedState(data: PlanData, edit?: (entries: PlanData["entries"]) => PlanData["entries"]): PlanData {
+  const cal = projectResolver(data);
+  const pool = installerPool(data);
+  const dropped = new Set([GROUND_KEY, ...data.nodes.filter((n) => n.kind === "RESERVATION").map((n) => n.key)]);
+  const nodes = data.nodes.filter((n) => !dropped.has(n.key));
+  const entries = data.entries.filter((e) => !dropped.has(e.nodeKey) && e.nodeKey !== pool.key);
+  const reservations: PlanData["entries"] = [];
+  data.phases.forEach((ph, i) => {
+    const key = phaseReservationKey(ph.key);
+    nodes.push({ key, parentKey: pool.key, kind: "RESERVATION", name: `${ph.name} installers (planned)`, role: "Installer", phaseId: ph.id, areaId: null, systemId: null, activityKey: null, calendarKey: null, notes: "Planned headcount", sortOrder: i });
+    const [start, finish] = WINDOWS[ph.name];
+    reservations.push(...windowEntries(key, start, finish, 8, cal));
+  });
+  const edited = edit ? edit(reservations) : reservations;
+  const withReservations = { ...data, nodes, entries: [...entries, ...edited] };
+  const sums = new Map<string, number>();
+  for (const n of nodes.filter((x) => x.parentKey === pool.key)) for (const [d, h] of headcountOn(withReservations, n.key)) sums.set(d, (sums.get(d) ?? 0) + h);
+  return { ...withReservations, entries: [...entries, ...edited, ...dailyEntries(pool.key, (d) => sums.get(d) ?? 0, "2027-05-17", "2028-04-30", cal)] };
+}
+
+async function setPlan(data: PlanData, next: PlanData) {
+  const p = await project();
+  await mutatePlan(null, data.plan.id, data.plan.revision, () => next, { kind: "EDIT", summary: "test setup", workspaceId: p.workspaceId });
 }
 
 describe("CMH139 seed reconciliation", () => {
   beforeAll(async () => {
     // The integration global setup seeds a fresh database; this checks that state first.
     await project();
+  });
+
+  it("the forecast fixture matches the source figures", () => {
+    expect(FORECAST.months.map((m) => [m.month, [m.installation.high, m.support.high]])).toEqual(Object.entries(HIGHS));
+    for (const m of FORECAST.months) expect(m.installation.high + m.support.high, m.month).toBe(m.combined.high);
+    expect(Math.max(...FORECAST.months.map((m) => m.combined.high))).toBe(16);
   });
 
   it("a fresh seed creates exactly six phases with their ROMPs, exact windows, and milestone provenance", async () => {
@@ -118,16 +172,32 @@ describe("CMH139 seed reconciliation", () => {
     expect(p6.find((m) => m.code === "SWD")!.values.find((x) => x.sourceLabel.includes("MS60000"))?.note).toMatch(/Gray Early Start Work Date, page 3/);
   });
 
-  it("each phase has one reservation of 8 planned installers over its window, and the pool equals the sum of active reservations", async () => {
+  it("staffing follows the manpower forecast: an installer pool and a ground support pool at the upper monthly figures, with no per-phase reservations", async () => {
     const data = await working();
     checkStaffing(data);
-    expect(data.nodes.filter((n) => n.key.startsWith("cmh139-phase-"))).toHaveLength(6);
+    expect(data.nodes.filter((n) => n.kind !== "POOL")).toEqual([]);
+    expect(installerPool(data).notes).toMatch(/McKeever & Niekamp Electric manpower forecast of 2026-11-06 .*working leads included.*upper figure/);
     // Planned headcount only: no named installers, no invented leadership dates.
     expect(await prisma.person.count({ where: { displayName: { contains: "nstaller" } } })).toBe(0);
     expect(data.leadership.map((l) => [l.role, l.personName, l.startDate, l.endDate]).sort()).toEqual([
       ["Main foreman", "TBD", null, null],
       ["Project manager", "Tyler Sisia", null, null],
     ]);
+    // Ground support is its own workforce role in the project workspace.
+    const ws = await prisma.workspace.findUniqueOrThrow({ where: { id: (await project()).workspaceId } });
+    expect(JSON.stringify(ws)).toContain("Ground support");
+  });
+
+  it("attaches the schedule and the manpower forecast once each", async () => {
+    const p = await project();
+    const docs = await prisma.projectDocument.findMany({ where: { projectId: p.id } });
+    const files = await prisma.storedFile.findMany({ where: { id: { in: docs.map((d) => d.fileId) } } });
+    const fileOf = (fileId: string) => files.find((f) => f.id === fileId)!;
+    const forecast = docs.filter((d) => d.title.startsWith("CMH139 revised manpower loading"));
+    expect(forecast).toHaveLength(1);
+    expect(forecast[0].category).toBe("CORRESPONDENCE");
+    expect(fileOf(forecast[0].fileId)).toMatchObject({ kind: "ATTACHMENT", contentType: "application/pdf" });
+    expect(docs.filter((d) => fileOf(d.fileId).kind === "SOURCE_SCHEDULE")).toHaveLength(1);
   });
 
   it("re-running is idempotent", async () => {
@@ -144,14 +214,13 @@ describe("CMH139 seed reconciliation", () => {
   it("an older three-phase project without a workforce plan reconciles to six phases, keeping the project and operator data", async () => {
     const p = await project();
     const data = await working();
-    // Recreate the older state: Phases 4-6, their milestones and windows, and all planned staffing are absent.
+    // Recreate the older state: Phases 4-6, their milestones and windows, ground support and all planned staffing are absent.
     const later = await prisma.phase.findMany({ where: { projectId: p.id, name: { in: ["Phase 4", "Phase 5", "Phase 6"] } } });
     await prisma.milestone.deleteMany({ where: { phaseId: { in: later.map((x) => x.id) } } });
     await prisma.phaseWindow.deleteMany({ where: { planId: data.plan.id } });
     await prisma.phase.deleteMany({ where: { id: { in: later.map((x) => x.id) } } });
-    await prisma.allocationNode.deleteMany({ where: { planId: data.plan.id, key: { startsWith: "cmh139-phase-" } } });
-    const pool = data.nodes.find((n) => n.kind === "POOL")!;
-    await prisma.staffingEntry.deleteMany({ where: { node: { planId: data.plan.id, key: pool.key } } });
+    await prisma.allocationNode.deleteMany({ where: { planId: data.plan.id, key: GROUND_KEY } });
+    await prisma.staffingEntry.deleteMany({ where: { node: { planId: data.plan.id, key: CMH139_POOL_KEY } } });
     expect(await prisma.phase.count({ where: { projectId: p.id } })).toBe(3);
 
     // Operator data that must survive: a confirmed milestone, actual progress, and an imported source version.
@@ -172,8 +241,11 @@ describe("CMH139 seed reconciliation", () => {
     const run = await seedCmh139(ROOT);
     expect(run.created).toBe(false);
     expect((await project()).id).toBe(p.id);
-    expect(run.log.join("\n")).toMatch(/6 phases: Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, Phase 6/);
-    for (const name of Object.keys(WINDOWS)) expect(run.log.join("\n")).toContain(`${name} installers (planned): 8 planned installers, ${WINDOWS[name][0]} to ${WINDOWS[name][1]}`);
+    const log = run.log.join("\n");
+    expect(log).toMatch(/6 phases: Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, Phase 6/);
+    expect(log).toMatch(/Installers — shared workforce: forecast applied 2027-04-01 to 2028-04-30/);
+    expect(log).toMatch(/Ground support — ACE site safety: workforce pool created/);
+    expect(log).toContain("2027-08: installation 9-12 → 12, ground support 2-4 → 4 (combined up to 16; Phases 3-4 / offices)");
     const after = await working();
     expect(after.phases.map((x) => x.name)).toEqual(Object.keys(WINDOWS));
     for (const ph of after.phases) {
@@ -192,19 +264,52 @@ describe("CMH139 seed reconciliation", () => {
     expect(await counts(p.id)).toEqual(before);
   });
 
-  it("a reservation edited after seeding is left as edited, and the pool follows it", async () => {
+  it("the earlier 8-per-phase reservations are removed, and the forecast replaces the pool they summed to", async () => {
     const data = await working();
-    const key = phaseReservationKey("phase-2");
-    const node = await prisma.allocationNode.findFirstOrThrow({ where: { planId: data.plan.id, key } });
-    // The operator plans 10 instead of 8 for one full week of Phase 2.
-    await prisma.staffingEntry.updateMany({ where: { nodeId: node.id, kind: "WEEK", date: new Date("2027-08-02T00:00:00Z") }, data: { headcount: 10 } });
+    await setPlan(data, earlierSeedState(data));
+    const older = await working();
+    expect(older.nodes.filter((n) => n.kind === "RESERVATION")).toHaveLength(6);
+    expect(headcountOn(older, CMH139_POOL_KEY).get("2027-09-01")).toBe(48);
+
     const run = await seedCmh139(ROOT);
-    expect(run.log.join("\n")).toMatch(/Phase 2 installers \(planned\): reservation staffing was edited after seeding; left as edited/);
+    for (const name of Object.keys(WINDOWS)) expect(run.log.join("\n")).toContain(`${name} installers (planned): removed (superseded by the manpower forecast)`);
     const after = await working();
-    expect(after.entries.find((e) => e.nodeKey === key && e.date === "2027-08-02")?.headcount).toBe(10);
-    // Phases 1-5 active that week: 4 x 8 + 10.
-    expect(headcountOn(after, after.nodes.find((n) => n.kind === "POOL")!.key).get("2027-08-03")).toBe(42);
-    expect(checkCapacity(after, expandAllNodes(after), buildTree(after.nodes))).toEqual([]);
-    expect(CMH139_POOL_KEY).toBe("cmh139-installer-pool");
+    expect(after.nodes.filter((n) => n.kind === "RESERVATION")).toEqual([]);
+    checkStaffing(after);
+    const rev = after.plan.revision;
+    await seedCmh139(ROOT);
+    expect((await working()).plan.revision).toBe(rev);
+  });
+
+  it("an earlier reservation edited by an operator is kept when it fits the forecast, and the seed stops without changes when it does not", async () => {
+    const key = phaseReservationKey("phase-2");
+    // The operator replaced Phase 2's 8-a-day reservation with 3 for the week of 2 Aug 2027.
+    const fits = (es: PlanData["entries"]) => [...es.filter((e) => e.nodeKey !== key), { ...es.find((e) => e.nodeKey === key && e.kind === "WEEK")!, date: "2027-08-02", headcount: 3 }];
+    let data = await working();
+    await setPlan(data, earlierSeedState(data, fits));
+    const run = await seedCmh139(ROOT);
+    expect(run.log.join("\n")).toMatch(/Phase 2 installers \(planned\): edited after seeding; kept as edited/);
+    const after = await working();
+    expect(after.nodes.filter((n) => n.kind === "RESERVATION").map((n) => n.key)).toEqual([key]);
+    expect(headcountOn(after, key).get("2027-08-03")).toBe(3);
+    checkStaffing(after);
+
+    // An edit larger than the forecast (14 in July, where the forecast is up to 12) cannot be absorbed:
+    // the seed reports it and leaves the plan exactly as it was.
+    const tooMany = (es: PlanData["entries"]) => [...es.filter((e) => e.nodeKey !== key), { ...es.find((e) => e.nodeKey === key && e.kind === "WEEK")!, date: "2027-07-12", headcount: 14 }];
+    data = await working();
+    await setPlan(data, earlierSeedState(data, tooMany));
+    const before = await working();
+    await expect(seedCmh139(ROOT)).rejects.toThrow(/CMH139 staffing was not changed: Over capacity in "Installers — shared workforce" on 2027-07-12.*must fit within the forecast/s);
+    const unchanged = await working();
+    expect(unchanged.plan.revision).toBe(before.plan.revision);
+    expect(unchanged.entries).toEqual(before.entries);
+
+    // Reducing the edit lets the seed finish.
+    await setPlan(unchanged, { ...unchanged, entries: unchanged.entries.map((e) => (e.nodeKey === key ? { ...e, headcount: 10 } : e)) });
+    await seedCmh139(ROOT);
+    const fixed = await working();
+    expect(headcountOn(fixed, key).get("2027-07-13")).toBe(10);
+    checkStaffing(fixed);
   });
 });
